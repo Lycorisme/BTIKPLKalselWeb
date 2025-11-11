@@ -129,12 +129,12 @@ $trashCount = $trashCountData['total'] ?? 0;
             </li>
           </ul>
         </li>
-<!--         <li class="sidebar-item <?= $currentPage === 'pages' ? 'active' : '' ?>">
+        <li class="sidebar-item <?= $currentPage === 'pages' ? 'active' : '' ?>">
           <a href="<?= ADMIN_URL ?>modules/pages/pages_list.php" class="sidebar-link">
             <i class="bi bi-file-earmark-text"></i>
             <span>Halaman</span>
           </a>
-        </li> -->
+        </li>
         <li class="sidebar-item <?= $currentPage === 'files' ? 'active' : '' ?>">
           <a href="<?= ADMIN_URL ?>modules/files/files_list.php" class="sidebar-link">
             <i class="bi bi-download"></i>

@@ -205,7 +205,9 @@ include '../../includes/header.php';
                                     </div>
                                 <?php endif; ?>
                                 <input type="file" name="site_logo" class="form-control" accept="image/*">
-                                <small class="text-muted">PNG/JPG, max 2MB. Rekomendasi: 200x60px</small>
+                                <small class="text-muted">
+                                    PNG/JPG, max <strong><?= htmlspecialchars($settings['upload_max_size'] ?? '5') ?>MB</strong>. Rekomendasi: 200x60px
+                                </small>
                             </div>
                             
                             <!-- Logo Text -->
@@ -408,7 +410,6 @@ include '../../includes/header.php';
                                 <input type="text" name="social_whatsapp" class="form-control" 
                                        value="<?= htmlspecialchars($settings['social_whatsapp'] ?? '') ?>"
                                        placeholder="https://wa.me/628xxxxxxx atau +62 812-xxxx-xxxx">
-                                <small class="text-muted">Format: https://wa.me/628xxxxxxxxx (tanpa +, -, atau spasi)</small>
                             </div>
                         </div>
                     </div>
@@ -483,7 +484,9 @@ include '../../includes/header.php';
                                     </div>
                                 <?php endif; ?>
                                 <input type="file" name="login_background_image" class="form-control" accept="image/*">
-                                <small class="text-muted">JPG/PNG, max 2MB. Rekomendasi: 1920x1080px</small>
+                                <small class="text-muted">
+                                    JPG/PNG, max <strong><?= htmlspecialchars($settings['upload_max_size'] ?? '5') ?>MB</strong>. Rekomendasi: 1920x1080px
+                                </small>
                             </div>
                             
                             <!-- Login Solid Color -->

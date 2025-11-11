@@ -165,12 +165,6 @@ include '../../includes/header.php';
                     </div>
                 <?php endif ?>
 
-                <div class="alert alert-info mb-3">
-                    <i class="bi bi-info-circle"></i>
-                    Menampilkan <strong><?= count($users) ?></strong> dari <strong><?= $totalItems ?></strong> pengguna
-                    <?php if ($showDeleted=='1'): ?><span class="badge bg-warning text-dark ms-2">Termasuk data terhapus</span><?php endif ?>
-                </div>
-
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="table-light">

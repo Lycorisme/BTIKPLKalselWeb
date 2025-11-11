@@ -1,6 +1,7 @@
 <?php
 /**
- * Banners List - Full Mazer Design with Soft Delete, Search, Drag/Drop Reordering
+ * Banners List - Full Mazer Design with Soft Delete, Search
+ * Layout disamakan dengan files_list.php (Single Card Layout)
  */
 require_once '../../includes/auth_check.php';
 require_once '../../../core/Database.php';
@@ -15,7 +16,8 @@ $bannerModel = new Banner();
 
 // Pagination & Filter
 $page = max(1, (int)($_GET['page'] ?? 1));
-$perPage = (int)($_GET['per_page'] ?? 20);
+// Ambil perPage dari settings, atau default ke 10
+$perPage = (int)($_GET['per_page'] ?? getSetting('items_per_page', 10));
 $search = trim($_GET['q'] ?? '');
 $status = $_GET['status'] ?? '';
 $showDeleted = $_GET['show_deleted'] ?? '0';
@@ -40,6 +42,12 @@ $statusOptions = [
     '0' => 'Nonaktif'
 ];
 $perPageOptions = [10, 20, 50, 100];
+// Perbarui nilai perPage default di dropdown jika tidak ada di list standar
+if (!in_array($perPage, $perPageOptions) && $perPage > 0) {
+    $perPageOptions[] = $perPage;
+    sort($perPageOptions);
+}
+
 $showDeletedOptions = [
     '0' => 'Tampilkan Data Aktif',
     '1' => 'Tampilkan Data Terhapus'
@@ -67,64 +75,58 @@ include '../../includes/header.php';
     </div>
 
     <section class="section">
-        <!-- Filter Card -->
-        <div class="card shadow mb-3">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title">Daftar Banner</h5>
+                    <a href="banners_add.php" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Tambah Banner
+                    </a>
+                </div>
+            </div>
             <div class="card-body">
-                <form method="GET" class="row g-2 align-items-center">
-                    <div class="col-12 col-sm-4">
-                        <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Cari judul atau caption..." class="form-control">
+                <form method="GET" class="row g-3 mb-4">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label">Cari Banner</label>
+                        <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" 
+                               placeholder="Judul, caption..." class="form-control form-control-sm">
                     </div>
-                    <div class="col-6 col-sm-2">
-                        <select name="status" class="form-select custom-dropdown">
+                    <div class="col-6 col-md-2">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select form-select-sm">
                             <?php foreach ($statusOptions as $val => $label): ?>
                                 <option value="<?= $val ?>"<?= $status === $val ? ' selected' : '' ?>><?= $label ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-6 col-sm-2">
-                        <select name="show_deleted" class="form-select custom-dropdown">
+                    <div class="col-6 col-md-2">
+                        <label class="form-label">Tampilkan</label>
+                        <select name="show_deleted" class="form-select form-select-sm">
                             <?php foreach ($showDeletedOptions as $val => $label): ?>
                                 <option value="<?= $val ?>"<?= $showDeleted === $val ? ' selected' : '' ?>><?= $label ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-6 col-sm-2">
-                        <select name="per_page" class="form-select custom-dropdown">
+                    <div class="col-6 col-md-2">
+                        <label class="form-label">Per Page</label>
+                        <select name="per_page" class="form-select form-select-sm">
                             <?php foreach ($perPageOptions as $n): ?>
                                 <option value="<?= $n ?>"<?= $perPage == $n ? ' selected' : '' ?>><?= $n ?>/hlm</option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-6 col-sm-2">
-                        <button type="submit" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-search"></i> <span class="d-none d-md-inline">Cari</span>
+                    <div class="col-6 col-md-3 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                            <i class="bi bi-search"></i> Cari
                         </button>
+                        <?php if ($search || $status !== '' || $showDeleted === '1' || (isset($_GET['per_page']) && $_GET['per_page'] != getSetting('items_per_page', 10))): ?>
+                            <a href="banners_list.php" class="btn btn-secondary btn-sm">
+                                <i class="bi bi-x-circle"></i> Reset
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </form>
-            </div>
-        </div>
-
-        <?php if ($search || $status !== '' || $showDeleted === '1'): ?>
-            <div class="mb-3">
-                <a href="banners_list.php" class="btn btn-sm btn-secondary">
-                    <i class="bi bi-x-circle"></i> Reset
-                </a>
-            </div>
-        <?php endif; ?>
-
-        <!-- Banners Card -->
-        <div class="card shadow">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <div>
-                    <h5 class="card-title mb-0">Daftar Banner</h5>
-                    <p class="text-muted small mb-0">Total: <strong><?= $totalBanners ?></strong> banner</p>
-                </div>
-                <a href="banners_add.php" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> <span class="d-none d-md-inline">Tambah Banner</span>
-                </a>
-            </div>
-
-            <div class="card-body p-0">
+                
                 <?php if (empty($banners)): ?>
                     <div class="text-center py-5">
                         <i class="bi bi-images" style="font-size: 3rem; color: #ccc;"></i>
@@ -218,46 +220,67 @@ include '../../includes/header.php';
                     </div>
                 <?php endif; ?>
 
-                <!-- Pagination -->
-                <?php if ($totalPages > 1): ?>
-                    <div class="card-footer border-top">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <?php if ($totalBanners > 0): ?>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
+                        <div>
                             <small class="text-muted">
                                 Halaman <?= $page ?> dari <?= $totalPages ?> · Menampilkan <?= count($banners) ?> dari <?= $totalBanners ?> banner
                             </small>
-                            <nav>
-                                <ul class="pagination mb-0">
-                                    <li class="page-item<?= $page <= 1 ? ' disabled' : '' ?>">
-                                        <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>">
-                                            <i class="bi bi-chevron-left"></i>
-                                        </a>
-                                    </li>
-                                    <?php
-                                    $from = max(1, $page - 2);
-                                    $to = min($totalPages, $page + 2);
-                                    for ($i = $from; $i <= $to; $i++): ?>
-                                        <li class="page-item<?= $i == $page ? ' active' : '' ?>">
-                                            <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>">
-                                                <?= $i ?>
-                                            </a>
-                                        </li>
-                                    <?php endfor; ?>
-                                    <li class="page-item<?= $page >= $totalPages ? ' disabled' : '' ?>">
-                                        <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>">
-                                            <i class="bi bi-chevron-right"></i>
-                                        </a>
-                                    </li>
-                                </ul>
-                            </nav>
                         </div>
+                        
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination mb-0">
+                                
+                                <?php // Tombol Previous ?>
+                                <li class="page-item<?= $page <= 1 ? ' disabled' : '' ?>">
+                                    <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                                
+                                <?php // Nomor Halaman dengan Logika "..." ?>
+                                <?php
+                                $from = max(1, $page - 2);
+                                $to = min($totalPages, $page + 2);
+                                
+                                if ($from > 1) {
+                                    echo '<li class="page-item"><a class="page-link" href="?'.http_build_query(array_merge($_GET, ['page' => 1])).'">1</a></li>';
+                                    if ($from > 2) {
+                                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                    }
+                                }
+                                
+                                for ($i = $from; $i <= $to; $i++): ?>
+                                    <li class="page-item<?= $i == $page ? ' active' : '' ?>">
+                                        <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>">
+                                            <?= $i ?>
+                                        </a>
+                                    </li>
+                                <?php endfor; 
+                                
+                                if ($to < $totalPages) {
+                                    if ($to < $totalPages - 1) {
+                                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                    }
+                                    echo '<li class="page-item"><a class="page-link" href="?'.http_build_query(array_merge($_GET, ['page' => $totalPages])).'">'.$totalPages.'</a></li>';
+                                }
+                                ?>
+                                
+                                <?php // Tombol Next ?>
+                                <li class="page-item<?= $page >= $totalPages ? ' disabled' : '' ?>">
+                                    <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                                
+                            </ul>
+                        </nav>
                     </div>
                 <?php endif; ?>
-            </div>
-        </div>
-    </section>
+
+            </div> </div> </section>
 </div>
 
-<!-- Banner Preview Modal -->
 <div class="modal fade" id="thumbPreviewModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -265,7 +288,7 @@ include '../../includes/header.php';
                 <h5 class="modal-title">Preview Banner</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body text-center" id="modal-thumb-area" style="min-height:400px; display:flex; align-items:center; justify-content:center;">
+            <div class="modal-body text-center" id="modal-thumb-area" style="min-height:400px; display:flex; align-items-center; justify-content:center;">
                 <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">Loading...</span>
                 </div>

@@ -131,15 +131,6 @@ include '../../includes/header.php';
                     </div>
                 <?php endif; ?>
 
-                <!-- Info -->
-                <div class="alert alert-info mb-3">
-                    <i class="bi bi-info-circle"></i>
-                    Menampilkan <strong><?= count($tags) ?></strong> dari <strong><?= $totalItems ?></strong> tags
-                    <?php if ($showDeleted === '1'): ?>
-                        <span class="badge bg-warning ms-2">Termasuk data terhapus</span>
-                    <?php endif; ?>
-                </div>
-
                 <!-- Tags Table -->
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">

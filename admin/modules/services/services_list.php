@@ -152,14 +152,6 @@ include '../../includes/header.php';
                     </div>
                 <?php endif; ?>
 
-                <div class="alert alert-info mb-3">
-                    <i class="bi bi-info-circle"></i>
-                    Menampilkan <strong><?= count($services) ?></strong> dari <strong><?= $totalItems ?></strong> layanan
-                    <?php if ($showDeleted === '1'): ?>
-                        <span class="badge bg-warning ms-2">Termasuk data terhapus</span>
-                    <?php endif; ?>
-                </div>
-
                 <!-- Services Table -->
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">

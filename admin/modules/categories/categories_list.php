@@ -149,15 +149,7 @@ include '../../includes/header.php';
                         </a>
                     </div>
                 <?php endif; ?>
-
-                <div class="alert alert-info mb-3">
-                    <i class="bi bi-info-circle"></i>
-                    Menampilkan <strong><?= count($categories) ?></strong> dari <strong><?= $totalItems ?></strong> kategori
-                    <?php if ($showDeleted === '1'): ?>
-                        <span class="badge bg-warning ms-2">Termasuk data terhapus</span>
-                    <?php endif; ?>
-                </div>
-
+                
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">

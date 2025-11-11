@@ -1,7 +1,7 @@
 <?php
 /**
  * Activity Logs Page - Full Mazer Design
- * Complete with filters, search, export, pagination, and cleanup
+ * DI-UPDATE: Layout card statistik di layar kecil (col-4 -> col-12 col-md-4)
  */
 require_once '../../includes/auth_check.php';
 require_once '../../../core/Database.php';
@@ -18,7 +18,7 @@ if (!hasRole(['super_admin', 'admin'])) {
 $db = Database::getInstance()->getConnection();
 
 // Get items per page
-$itemsPerPage = (int)getSetting('items_per_page', 25);
+$itemsPerPage = (int)($_GET['per_page'] ?? getSetting('items_per_page', 25));
 $page = max(1, (int)($_GET['page'] ?? 1));
 
 // Get filters
@@ -106,29 +106,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     exit;
 }
 
-// Handle cleanup
-if (isset($_POST['cleanup_logs'])) {
-    $cleanupDays = (int)($_POST['cleanup_days'] ?? 0);
-    
-    if ($cleanupDays > 0 && $cleanupDays <= 365) {
-        try {
-            $stmt = $db->prepare("
-                DELETE FROM activity_logs 
-                WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
-            ");
-            $stmt->execute([$cleanupDays]);
-            
-            $deleted = $stmt->rowCount();
-            logActivity('DELETE', "Cleanup activity logs ($deleted records older than $cleanupDays days)", 'activity_logs');
-            
-            setAlert('success', "Berhasil menghapus $deleted log lama");
-            redirect(ADMIN_URL . 'modules/logs/activity_logs.php');
-        } catch (PDOException $e) {
-            error_log($e->getMessage());
-            setAlert('danger', 'Gagal cleanup logs: ' . $e->getMessage());
-        }
-    }
-}
+// Logika cleanup dipindah ke 'activity_logs_delete.php'
 
 // Build query with filters
 $sql = "SELECT 
@@ -207,6 +185,13 @@ $modelStmt = $db->query("
 ");
 $modelTypes = $modelStmt->fetchAll(PDO::FETCH_COLUMN);
 
+// Buat opsi dropdown untuk Per Page
+$perPageOptions = [10, 25, 50, 100];
+if (!in_array($itemsPerPage, $perPageOptions) && $itemsPerPage > 0) {
+    $perPageOptions[] = $itemsPerPage;
+    sort($perPageOptions);
+}
+
 // Get statistics
 $statsStmt = $db->query("
     SELECT 
@@ -238,23 +223,31 @@ include '../../includes/header.php';
         </div>
     </div>
 
+    <!-- 
+    =======================================================================
+    PERBAIKAN:
+    class="col-md-4 col-4 mb-2" diubah menjadi "col-12 col-md-4 mb-3"
+    col-12 akan membuatnya 100% width di HP (stacking / list ke bawah)
+    col-md-4 akan membuatnya 33.3% width di Desktop (menyamping)
+    =======================================================================
+    -->
     <!-- Statistics Cards -->
     <section class="row mb-4">
-        <div class="col-md-4 col-6 mb-2">
+        <div class="col-12 col-md-4 mb-3">
             <div class="card"><div class="card-body text-center">
                 <div class="stats-icon blue mb-2 mx-auto"><i class="bi bi-file-text"></i></div>
                 <h6 class="text-muted mb-1">Total Logs</h6>
                 <h6 class="mb-0"><?= formatNumber($stats['total']) ?></h6>
             </div></div>
         </div>
-        <div class="col-md-4 col-6 mb-2">
+        <div class="col-12 col-md-4 mb-3">
             <div class="card"><div class="card-body text-center">
                 <div class="stats-icon green mb-2 mx-auto"><i class="bi bi-people"></i></div>
                 <h6 class="text-muted mb-1">Unique Users</h6>
                 <h6 class="mb-0"><?= formatNumber($stats['unique_users']) ?></h6>
             </div></div>
         </div>
-        <div class="col-md-4 col-6 mb-2">
+        <div class="col-12 col-md-4 mb-3">
             <div class="card"><div class="card-body text-center">
                 <div class="stats-icon purple mb-2 mx-auto"><i class="bi bi-clock-history"></i></div>
                 <h6 class="text-muted mb-1">Last Activity</h6>
@@ -280,13 +273,16 @@ include '../../includes/header.php';
             </div>
 
             <div class="card-body">
-                <!-- Filter Panel -->
-                <form method="GET" class="row g-2 align-items-center mb-3">
-                    <div class="col-12 col-sm-3">
-                        <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Cari deskripsi..." class="form-control">
+                <!-- Filter Panel (Standardized) -->
+                <form method="GET" class="row g-3 mb-4">
+                    <!-- Baris 1: Filter Utama -->
+                    <div class="col-12 col-md-3">
+                        <label class="form-label">Cari Deskripsi/User</label>
+                        <input type="text" name="search" class="form-control form-control-sm" value="<?= htmlspecialchars($search) ?>" placeholder="Cari...">
                     </div>
-                    <div class="col-6 col-sm-3">
-                        <select name="user_id" class="form-select custom-dropdown">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label">User</label>
+                        <select name="user_id" class="form-select form-select-sm">
                             <option value="">Semua User</option>
                             <?php foreach ($users as $user): ?>
                                 <option value="<?= $user['id'] ?>"<?= $userId === (string)$user['id'] ? ' selected' : '' ?>>
@@ -295,56 +291,54 @@ include '../../includes/header.php';
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-6 col-sm-2">
-                        <select name="action_type" class="form-select custom-dropdown">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">Action</label>
+                        <select name="action_type" class="form-select form-select-sm">
                             <option value="">Semua Action</option>
                             <?php foreach ($actionTypes as $type): ?>
                                 <option value="<?= $type ?>"<?= $actionType === $type ? ' selected' : '' ?>><?= $type ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-6 col-sm-2">
-                        <select name="model_type" class="form-select custom-dropdown">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">Module</label>
+                        <select name="model_type" class="form-select form-select-sm">
                             <option value="">Semua Module</option>
                             <?php foreach ($modelTypes as $type): ?>
                                 <option value="<?= $type ?>"<?= $modelType === $type ? ' selected' : '' ?>><?= ucfirst($type) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-6 col-sm-2">
-                        <button type="submit" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-search"></i> <span class="d-none d-md-inline">Filter</span>
+
+                    <!-- Baris 2: Tanggal & Aksi -->
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">Dari Tanggal</label>
+                        <input type="date" name="date_from" class="form-control form-control-sm" value="<?= htmlspecialchars($dateFrom) ?>">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">Sampai Tanggal</label>
+                        <input type="date" name="date_to" class="form-control form-control-sm" value="<?= htmlspecialchars($dateTo) ?>">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label">Per Page</label>
+                        <select name="per_page" class="form-select form-select-sm">
+                            <?php foreach ($perPageOptions as $n): ?>
+                                <option value="<?= $n ?>"<?= $itemsPerPage == $n ? ' selected' : '' ?>><?= $n ?>/hlm</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-4 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                            <i class="bi bi-search"></i> Filter
                         </button>
+                        <!-- Reset button logic -->
+                        <?php if ($userId || $actionType || $modelType || $dateFrom || $dateTo || $search || (isset($_GET['per_page']) && $_GET['per_page'] != getSetting('items_per_page', 25))): ?>
+                            <a href="activity_logs.php" class="btn btn-secondary btn-sm">
+                                <i class="bi bi-x-circle"></i> Reset
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </form>
-
-                <!-- Date Range (Optional additional row) -->
-                <form method="GET" class="row g-2 align-items-center mb-3">
-                    <div class="col-6 col-sm-3">
-                        <input type="date" name="date_from" class="form-control" value="<?= htmlspecialchars($dateFrom) ?>">
-                    </div>
-                    <div class="col-6 col-sm-3">
-                        <input type="date" name="date_to" class="form-control" value="<?= htmlspecialchars($dateTo) ?>">
-                    </div>
-                    <div class="col-12 col-sm-6">
-                        <button type="submit" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-calendar"></i> Filter by Date
-                        </button>
-                    </div>
-                </form>
-
-                <?php if ($userId || $actionType || $modelType || $dateFrom || $dateTo || $search): ?>
-                    <div class="mb-3">
-                        <a href="activity_logs.php" class="btn btn-sm btn-secondary">
-                            <i class="bi bi-x-circle"></i> Reset
-                        </a>
-                    </div>
-                <?php endif; ?>
-
-                <div class="alert alert-info mb-3">
-                    <i class="bi bi-info-circle"></i>
-                    Menampilkan <strong><?= count($logs) ?></strong> dari <strong><?= formatNumber($total) ?></strong> log
-                </div>
 
                 <!-- Logs Table -->
                 <div class="table-responsive">
@@ -412,7 +406,7 @@ include '../../includes/header.php';
                     </table>
                 </div>
 
-                <!-- Pagination bawah selalu tampil -->
+                <!-- Pagination (Standardized) -->
                 <?php if ($total > 0): ?>
                     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
                         <div>
@@ -430,13 +424,29 @@ include '../../includes/header.php';
                                 <?php
                                 $from = max(1, $page - 2);
                                 $to = min($totalPages, $page + 2);
+
+                                if ($from > 1) {
+                                    echo '<li class="page-item"><a class="page-link" href="?'.http_build_query(array_merge($_GET, ['page' => 1])).'">1</a></li>';
+                                    if ($from > 2) {
+                                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                    }
+                                }
+
                                 for ($i = $from; $i <= $to; $i++): ?>
                                     <li class="page-item<?= $i == $page ? ' active' : '' ?>">
                                         <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>">
                                             <?= $i ?>
                                         </a>
                                     </li>
-                                <?php endfor; ?>
+                                <?php endfor;
+
+                                if ($to < $totalPages) {
+                                    if ($to < $totalPages - 1) {
+                                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                    }
+                                    echo '<li class="page-item"><a class="page-link" href="?'.http_build_query(array_merge($_GET, ['page' => $totalPages])).'">'.$totalPages.'</a></li>';
+                                }
+                                ?>
                                 <li class="page-item<?= $page >= $totalPages ? ' disabled' : '' ?>">
                                     <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>">
                                         <i class="bi bi-chevron-right"></i>
@@ -469,7 +479,8 @@ include '../../includes/header.php';
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
                 <a href="?export=csv<?= $userId ? '&user_id='.$userId : '' ?><?= $actionType ? '&action_type='.$actionType : '' ?><?= $modelType ? '&model_type='.$modelType : '' ?><?= $dateFrom ? '&date_from='.$dateFrom : '' ?><?= $dateTo ? '&date_to='.$dateTo : '' ?><?= $search ? '&search='.urlencode($search) : '' ?>" 
-                   class="btn btn-success">
+                   class="btn btn-success"
+                   data-confirm-export> <!-- Atribut notifikasi kustom -->
                     <i class="bi bi-download"></i> Download CSV
                 </a>
             </div>
@@ -482,7 +493,7 @@ include '../../includes/header.php';
 <div class="modal fade" id="cleanupModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST">
+            <form method="POST" action="activity_logs_delete.php" id="cleanupForm">
                 <div class="modal-header">
                     <h5 class="modal-title">Cleanup Old Logs</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -496,9 +507,10 @@ include '../../includes/header.php';
                     <div class="form-group">
                         <label class="form-label">Hapus log lebih dari:</label>
                         <select name="cleanup_days" class="form-select" required>
+                            <option value="7" selected>7 hari</option>
                             <option value="30">30 hari</option>
                             <option value="60">60 hari</option>
-                            <option value="90" selected>90 hari</option>
+                            <option value="90">90 hari</option>
                             <option value="180">180 hari (6 bulan)</option>
                             <option value="365">365 hari (1 tahun)</option>
                         </select>
@@ -506,7 +518,7 @@ include '../../includes/header.php';
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" name="cleanup_logs" class="btn btn-danger">
+                    <button type="button" name="cleanup_logs" class="btn btn-danger" id="confirmCleanupBtn">
                         <i class="bi bi-trash"></i> Hapus Logs Lama
                     </button>
                 </div>
@@ -515,5 +527,55 @@ include '../../includes/header.php';
     </div>
 </div>
 <?php endif; ?>
+
+
+<!-- Script Notifikasi Kustom (Sudah ada) -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // Handler untuk tombol EXPORT
+    document.querySelector('[data-confirm-export]').addEventListener('click', function(e) {
+        e.preventDefault();
+        const href = this.getAttribute('href');
+
+        notify.confirm({
+            type: 'info',
+            title: 'Konfirmasi Export',
+            message: 'Anda akan men-download file CSV berisi log. Lanjutkan?',
+            confirmText: 'Ya, Download',
+            cancelText: 'Batal',
+            onConfirm: function() {
+                notify.info('Mempersiapkan file export...', 2000);
+                window.location.href = href;
+            }
+        });
+    });
+
+    // Handler untuk tombol CLEANUP (hanya jika ada)
+    const cleanupBtn = document.getElementById('confirmCleanupBtn');
+    if (cleanupBtn) {
+        cleanupBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const form = document.getElementById('cleanupForm');
+            const select = form.querySelector('select[name="cleanup_days"]');
+            const days = select.options[select.selectedIndex].text;
+
+            notify.confirm({
+                type: 'danger', // Tipe danger untuk aksi menghapus
+                title: 'Hapus Logs Lama?',
+                message: `PERINGATAN: Anda akan menghapus permanen semua log yang lebih tua dari <strong>${days}</strong>. Aksi ini tidak bisa dibatalkan. Lanjutkan?`,
+                confirmText: 'Ya, Hapus Permanen',
+                cancelText: 'Batal',
+                onConfirm: function() {
+                    notify.loading('Menghapus logs...');
+                    form.submit(); // Ini akan submit ke 'activity_logs_delete.php'
+                }
+            });
+        });
+    }
+
+});
+</script>
 
 <?php include '../../includes/footer.php'; ?>

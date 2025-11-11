@@ -1,25 +1,35 @@
 <?php
 /**
  * Trash/Recycle Bin - List All Deleted Items
+ * Layout di-refaktor agar konsisten dengan files_list.php (Filter Bar & Pagination)
+ * DITAMBAH: Notifikasi Kustom untuk Restore & Delete
+ * DIHAPUS: Card ringkasan
  */
 
 require_once '../../includes/auth_check.php';
 require_once '../../../core/Database.php';
 require_once '../../../core/Helper.php';
 
- $pageTitle = 'Trash';
- $currentPage = 'trash';
+$pageTitle = 'Trash';
+$currentPage = 'trash';
 
- $db = Database::getInstance()->getConnection();
+$db = Database::getInstance()->getConnection();
 
 // Get filter parameters
- $type = $_GET['type'] ?? '';
- $search = $_GET['search'] ?? '';
+$type = $_GET['type'] ?? '';
+$search = $_GET['search'] ?? '';
 
 // Pagination
- $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
- $perPage = 20;
- $offset = ($page - 1) * $perPage;
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$perPage = (int)($_GET['per_page'] ?? getSetting('items_per_page', 20));
+$offset = ($page - 1) * $perPage;
+
+// Opsi dropdown
+$perPageOptions = [10, 20, 50, 100];
+if (!in_array($perPage, $perPageOptions) && $perPage > 0) {
+    $perPageOptions[] = $perPage;
+    sort($perPageOptions);
+}
 
 // Function to check if a column exists in a table
 function columnExists($db, $table, $column) {
@@ -36,7 +46,7 @@ function columnExists($db, $table, $column) {
 // STEP 1 - Dapatkan hitungan TOTAL untuk DROPDOWN
 // =================================================================
 $dropdownCounts = [
-    'posts' => 0, 'services' => 0, 'users' => 0, 'pages' => 0, // 'pages' DITAMBAHKAN
+    'posts' => 0, 'services' => 0, 'users' => 0, 'pages' => 0, 
     'categories' => 0, 'files' => 0, 'albums' => 0, 'photos' => 0, 
     'banners' => 0, 'contacts' => 0,
 ];
@@ -56,8 +66,8 @@ function getTrashCount($db, $table) {
 $dropdownCounts['posts'] = getTrashCount($db, 'posts');
 $dropdownCounts['services'] = getTrashCount($db, 'services');
 $dropdownCounts['users'] = getTrashCount($db, 'users');
-$dropdownCounts['pages'] = getTrashCount($db, 'pages'); // 'pages' DITAMBAHKAN
-$dropdownCounts['categories'] = getTrashCount($db, 'categories');
+$dropdownCounts['pages'] = getTrashCount($db, 'pages'); 
+$dropdownCounts['categories'] = getTrashCount($db, 'post_categories'); // Menyesuaikan nama tabel
 $dropdownCounts['files'] = getTrashCount($db, 'downloadable_files');
 $dropdownCounts['albums'] = getTrashCount($db, 'gallery_albums');
 $dropdownCounts['photos'] = getTrashCount($db, 'gallery_photos');
@@ -107,7 +117,7 @@ if ($type === '' || $type === 'users') {
     }
 }
 
-// 4. Pages (BARU DITAMBAHKAN)
+// 4. Pages
 if ($type === '' || $type === 'pages') {
     if (columnExists($db, 'pages', 'deleted_at')) {
         $sql = "SELECT id, title as name, 'page' as type, 'Halaman' as type_label, deleted_at, created_at FROM pages WHERE deleted_at IS NOT NULL";
@@ -120,8 +130,8 @@ if ($type === '' || $type === 'pages') {
 
 // 5. Categories
 if ($type === '' || $type === 'categories') {
-    if (columnExists($db, 'categories', 'deleted_at')) {
-        $sql = "SELECT id, name, 'category' as type, 'Kategori' as type_label, deleted_at, created_at FROM categories WHERE deleted_at IS NOT NULL";
+    if (columnExists($db, 'post_categories', 'deleted_at')) { // Menyesuaikan nama tabel
+        $sql = "SELECT id, name, 'category' as type, 'Kategori' as type_label, deleted_at, created_at FROM post_categories WHERE deleted_at IS NOT NULL";
         if ($search) $sql .= " AND (name LIKE ?)";
         $stmt = $db->prepare($sql);
         $search ? $stmt->execute(["%{$search}%"]) : $stmt->execute();
@@ -193,31 +203,14 @@ usort($deletedItems, function($a, $b) {
 });
 
 // =================================================================
-// STEP 3 - Paginate dan dapatkan hitungan untuk SUMMARY CARDS
+// STEP 3 - Paginate
 // =================================================================
 
 $totalItems = count($deletedItems);
-$totalPages = ceil($totalItems / $perPage);
+$totalPages = max(1, ceil($totalItems / $perPage));
 $paginatedItems = array_slice($deletedItems, $offset, $perPage);
 
-$summaryCardCounts = [
-    'posts' => 0, 'services' => 0, 'users' => 0, 'pages' => 0, // 'pages' DITAMBAHKAN
-    'categories' => 0, 'files' => 0, 'albums' => 0, 'photos' => 0, 
-    'banners' => 0, 'contacts' => 0,
-];
-
-foreach ($deletedItems as $item) {
-    if ($item['type'] === 'post') $summaryCardCounts['posts']++;
-    if ($item['type'] === 'service') $summaryCardCounts['services']++;
-    if ($item['type'] === 'user') $summaryCardCounts['users']++;
-    if ($item['type'] === 'page') $summaryCardCounts['pages']++; // 'page' DITAMBAHKAN
-    if ($item['type'] === 'category') $summaryCardCounts['categories']++;
-    if ($item['type'] === 'file') $summaryCardCounts['files']++;
-    if ($item['type'] === 'album') $summaryCardCounts['albums']++;
-    if ($item['type'] === 'photo') $summaryCardCounts['photos']++;
-    if ($item['type'] === 'banner') $summaryCardCounts['banners']++;
-    if ($item['type'] === 'contact') $summaryCardCounts['contacts']++;
-}
+// Logika untuk $summaryCardCounts Dihapus
 
 include '../../includes/header.php';
 ?>
@@ -226,7 +219,7 @@ include '../../includes/header.php';
     <div class="page-title">
         <div class="row align-items-center">
             <div class="col-12 col-md-6 mb-3 mb-md-0">
-                <h3><i class=""></i><?= $pageTitle ?></h3>
+                <h3><i class=""></i> <?= $pageTitle ?></h3>
             </div>
             <div class="col-12 col-md-6">
                 <nav aria-label="breadcrumb" class="breadcrumb-header float-md-end">
@@ -240,80 +233,10 @@ include '../../includes/header.php';
     </div>
 
     <section class="section">
-        <div class="row mb-4">
-            <div class="col-6 col-md-2 mb-3">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <div class="text-primary mb-2">
-                            <i class="bi bi-trash3 fs-3"></i>
-                        </div>
-                        <h5 class="mb-0"><?= $totalItems ?></h5> 
-                        <small class="text-muted">Total Items</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-md-2 mb-3">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <div class="text-primary mb-2">
-                            <i class="bi bi-newspaper fs-3"></i>
-                        </div>
-                        <h5 class="mb-0"><?= $summaryCardCounts['posts'] ?></h5>
-                        <small class="text-muted">Posts</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-md-2 mb-3">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <div class="text-success mb-2">
-                            <i class="bi bi-gear fs-3"></i>
-                        </div>
-                        <h5 class="mb-0"><?= $summaryCardCounts['services'] ?></h5>
-                        <small class="text-muted">Layanan</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-md-2 mb-3">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <div class="text-info mb-2">
-                            <i class="bi bi-people fs-3"></i>
-                        </div>
-                        <h5 class="mb-0"><?= $summaryCardCounts['users'] ?></h5>
-                        <small class="text-muted">Users</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-md-2 mb-3">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <div class="text-warning mb-2">
-                            <i class="bi bi-download fs-3"></i>
-                        </div>
-                        <h5 class="mb-0"><?= $summaryCardCounts['files'] ?></h5>
-                        <small class="text-muted">Files</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-md-2 mb-3">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <div class="text-secondary mb-2">
-                            <i class="bi bi-images fs-3"></i>
-                        </div>
-                        <h5 class="mb-0"><?= $summaryCardCounts['albums'] + $summaryCardCounts['photos'] ?></h5>
-                        <small class="text-muted">Gallery</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+        
         <div class="card shadow-sm">
             <div class="card-header">
-                <div class="row align-items-center">
-                    <div class="col-6 col-md-4">
-                        <div class="dropdown">
+                <div class="row align-items-center gy-3"> <div class="col-12 col-md-4"> <div class="dropdown">
                             <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="bi bi-funnel me-2"></i>
                                 <span id="filterLabel">
@@ -322,7 +245,7 @@ include '../../includes/header.php';
                                     else if ($type === 'posts') echo 'Posts';
                                     else if ($type === 'services') echo 'Layanan';
                                     else if ($type === 'users') echo 'Users';
-                                    else if ($type === 'pages') echo 'Halaman'; // 'pages' DITAMBAHKAN
+                                    else if ($type === 'pages') echo 'Halaman'; 
                                     else if ($type === 'categories') echo 'Kategori';
                                     else if ($type === 'files') echo 'Files';
                                     else if ($type === 'albums' || $type === 'photos') echo 'Gallery';
@@ -396,12 +319,14 @@ include '../../includes/header.php';
                             </ul>
                         </div>
                     </div>
-                    <div class="col-6 col-md-8 mt-3 mt-md-0">
-                        <div class="d-flex justify-content-end">
+                    <div class="col-12 col-md-8"> <div class="d-flex justify-content-start justify-content-md-end">
                             <?php if ($totalItems > 0): ?>
                                 <a href="trash_empty.php<?= $type ? '?type=' . $type : '' ?>" 
                                    class="btn btn-danger btn-sm"
-                                   onclick="return confirm('PERINGATAN: Ini akan menghapus PERMANEN semua item di trash. Tindakan ini TIDAK BISA dibatalkan!\n\nLanjutkan?')">
+                                   data-confirm-delete
+                                   data-title="Kosongkan Trash?"
+                                   data-message="PERINGATAN: Ini akan menghapus PERMANEN semua item di trash (sesuai filter). Tindakan ini TIDAK BISA dibatalkan! Lanjutkan?"
+                                   data-loading-text="Menghapus...">
                                     <i class="bi bi-trash3-fill"></i> Kosongkan Trash
                                 </a>
                             <?php endif; ?>
@@ -411,33 +336,41 @@ include '../../includes/header.php';
             </div>
             
             <div class="card-body">
-                <div class="row g-2 mb-4">
-                    <div class="col-12">
-                        <form method="GET" class="d-flex gap-2">
-                            <?php if ($type): ?>
-                                <input type="hidden" name="type" value="<?= htmlspecialchars($type) ?>">
-                            <?php endif; ?>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="bi bi-search"></i>
-                                </span>
-                                <input type="text" 
-                                       class="form-control" 
-                                       name="search" 
-                                       placeholder="Cari item..." 
-                                       value="<?= htmlspecialchars($search) ?>">
-                                <button class="btn btn-primary" type="submit">
-                                    Cari
-                                </button>
-                                <?php if ($search): ?>
-                                    <a href="?<?= $type ? 'type=' . $type : '' ?>" class="btn btn-outline-secondary">
-                                        <i class="bi bi-x-lg"></i>
-                                    </a>
-                                <?php endif; ?>
-                            </div>
-                        </form>
+                <form method="GET" class="row g-3 mb-4">
+                    <?php if ($type): ?>
+                        <input type="hidden" name="type" value="<?= htmlspecialchars($type) ?>">
+                    <?php endif; ?>
+
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Cari Item</label>
+                        <input type="text" 
+                               class="form-control form-control-sm" 
+                               name="search" 
+                               placeholder="Cari item..." 
+                               value="<?= htmlspecialchars($search) ?>">
                     </div>
-                </div>
+
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">Per Page</label>
+                        <select name="per_page" class="form-select form-select-sm">
+                            <?php foreach ($perPageOptions as $n): ?>
+                                <option value="<?= $n ?>"<?= $perPage == $n ? ' selected' : '' ?>><?= $n ?>/hlm</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-md-3 d-flex align-items-end gap-2">
+                        <button class="btn btn-primary btn-sm flex-grow-1" type="submit">
+                            <i class="bi bi-search"></i> Cari
+                        </button>
+                        
+                        <?php if ($search || (isset($_GET['per_page']) && $_GET['per_page'] != getSetting('items_per_page', 20))): ?>
+                            <a href="?<?= $type ? 'type=' . urlencode($type) : '' ?>" class="btn btn-secondary btn-sm" title="Reset">
+                                <i class="bi bi-x-circle"></i>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </form>
 
                 <?php if (empty($paginatedItems)): ?>
                     <div class="text-center py-5">
@@ -477,7 +410,7 @@ include '../../includes/header.php';
                                                 'post' => '<span class="badge bg-primary"><i class="bi bi-newspaper me-1"></i> Post</span>',
                                                 'service' => '<span class="badge bg-success"><i class="bi bi-gear me-1"></i> Layanan</span>',
                                                 'user' => '<span class="badge bg-info"><i class="bi bi-people me-1"></i> User</span>',
-                                                'page' => '<span class="badge bg-info"><i class="bi bi-file-earmark-text me-1"></i> Halaman</span>', // 'page' DITAMBAHKAN
+                                                'page' => '<span class="badge bg-info"><i class="bi bi-file-earmark-text me-1"></i> Halaman</span>',
                                                 'category' => '<span class="badge bg-secondary"><i class="bi bi-tags me-1"></i> Kategori</span>',
                                                 'file' => '<span class="badge bg-warning text-dark"><i class="bi bi-download me-1"></i> File</span>',
                                                 'album' => '<span class="badge bg-secondary"><i class="bi bi-images me-1"></i> Album</span>',
@@ -514,12 +447,15 @@ include '../../includes/header.php';
                                             <div class="btn-group btn-group-sm" role="group">
                                                 <a href="trash_restore.php?type=<?= $item['type'] ?>&id=<?= $item['id'] ?>" 
                                                    class="btn btn-success"
+                                                   data-confirm-restore data-item-name="<?= htmlspecialchars($item['name']) ?>"
                                                    title="Restore">
                                                     <i class="bi bi-arrow-counterclockwise"></i>
                                                 </a>
                                                 <a href="trash_delete.php?type=<?= $item['type'] ?>&id=<?= $item['id'] ?>" 
                                                    class="btn btn-danger"
-                                                   onclick="return confirm('PERINGATAN: Hapus permanen item ini? Tindakan TIDAK BISA dibatalkan!')"
+                                                   data-confirm-delete data-title="Hapus Permanen?"
+                                                   data-message="Yakin ingin menghapus permanen item '<?= htmlspecialchars($item['name']) ?>' (Tipe: <?= $item['type_label'] ?>)? Tindakan ini TIDAK BISA dibatalkan."
+                                                   data-loading-text="Menghapus permanen..."
                                                    title="Hapus Permanen">
                                                     <i class="bi bi-trash3-fill"></i>
                                                 </a>
@@ -546,7 +482,7 @@ include '../../includes/header.php';
                                                 'post' => '<span class="badge bg-primary"><i class="bi bi-newspaper me-1"></i> Post</span>',
                                                 'service' => '<span class="badge bg-success"><i class="bi bi-gear me-1"></i> Layanan</span>',
                                                 'user' => '<span class="badge bg-info"><i class="bi bi-people me-1"></i> User</span>',
-                                                'page' => '<span class="badge bg-info"><i class="bi bi-file-earmark-text me-1"></i> Halaman</span>', // 'page' DITAMBAHKAN
+                                                'page' => '<span class="badge bg-info"><i class="bi bi-file-earmark-text me-1"></i> Halaman</span>',
                                                 'category' => '<span class="badge bg-secondary"><i class="bi bi-tags me-1"></i> Kategori</span>',
                                                 'file' => '<span class="badge bg-warning text-dark"><i class="bi bi-download me-1"></i> File</span>',
                                                 'album' => '<span class="badge bg-secondary"><i class="bi bi-images me-1"></i> Album</span>',
@@ -571,18 +507,21 @@ include '../../includes/header.php';
                                         </small>
                                         <?php if ($daysInTrash >= 25): ?>
                                             <small class="text-danger">
-                                                <i class="bi bi-exclamation-triangle me-1"></i> Auto-delete dalam <?= 30 - $daysInTrash ?> hari
+                                                <i class="bi bi-exclamation-triangle me-1"></i> Auto-delete
                                             </small>
                                         <?php endif; ?>
                                     </div>
                                     <div class="d-flex gap-2">
                                         <a href="trash_restore.php?type=<?= $item['type'] ?>&id=<?= $item['id'] ?>" 
-                                           class="btn btn-success btn-sm flex-fill">
+                                           class="btn btn-success btn-sm flex-fill"
+                                           data-confirm-restore data-item-name="<?= htmlspecialchars($item['name']) ?>">
                                             <i class="bi bi-arrow-counterclockwise me-1"></i> Restore
                                         </a>
                                         <a href="trash_delete.php?type=<?= $item['type'] ?>&id=<?= $item['id'] ?>" 
                                            class="btn btn-danger btn-sm flex-fill"
-                                           onclick="return confirm('Hapus permanen?')">
+                                           data-confirm-delete data-title="Hapus Permanen?"
+                                           data-message="Yakin ingin menghapus permanen item '<?= htmlspecialchars($item['name']) ?>' (Tipe: <?= $item['type_label'] ?>)? Tindakan ini TIDAK BISA dibatalkan."
+                                           data-loading-text="Menghapus permanen...">
                                             <i class="bi bi-trash3-fill me-1"></i> Hapus
                                         </a>
                                     </div>
@@ -591,45 +530,93 @@ include '../../includes/header.php';
                         <?php endforeach; ?>
                     </div>
 
-                    <?php if ($totalPages > 1): ?>
-                        <nav class="mt-4">
-                            <ul class="pagination pagination-sm justify-content-center">
-                                <?php if ($page > 1): ?>
-                                    <li class="page-item">
-                                        <a class="page-link" href="?page=<?= $page - 1 ?><?= $type ? '&type=' . $type : '' ?><?= $search ? '&search=' . urlencode($search) : '' ?>">
+                    <?php if ($totalItems > 0): ?>
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
+                            <div>
+                                <small class="text-muted">
+                                    Halaman <?= $page ?> dari <?= $totalPages ?> · Menampilkan <?= count($paginatedItems) ?> dari <?= $totalItems ?> item
+                                </small>
+                            </div>
+                            
+                            <nav aria-label="Page navigation">
+                                <ul class="pagination mb-0">
+                                    
+                                    <?php // Tombol Previous ?>
+                                    <li class="page-item<?= $page <= 1 ? ' disabled' : '' ?>">
+                                        <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>">
                                             <i class="bi bi-chevron-left"></i>
-                                            <span class="d-none d-md-inline ms-1">Previous</span>
                                         </a>
                                     </li>
-                                <?php endif; ?>
-
-                                <?php
-                                $startPage = max(1, $page - 2);
-                                $endPage = min($totalPages, $page + 2);
-                                for ($i = $startPage; $i <= $endPage; $i++):
-                                ?>
-                                    <li class="page-item <?= $i === $page ? 'active' : '' ?>">
-                                        <a class="page-link" href="?page=<?= $i ?><?= $type ? '&type=' . $type : '' ?><?= $search ? '&search=' . urlencode($search) : '' ?>">
-                                            <?= $i ?>
-                                        </a>
-                                    </li>
-                                <?php endfor; ?>
-
-                                <?php if ($page < $totalPages): ?>
-                                    <li class="page-item">
-                                        <a class="page-link" href="?page=<?= $page + 1 ?><?= $type ? '&type=' . $type : '' ?><?= $search ? '&search=' . urlencode($search) : '' ?>">
-                                            <span class="d-none d-md-inline me-1">Next</span>
+                                    
+                                    <?php // Nomor Halaman dengan Logika "..." ?>
+                                    <?php
+                                    $from = max(1, $page - 2);
+                                    $to = min($totalPages, $page + 2);
+                                    
+                                    if ($from > 1) {
+                                        echo '<li class="page-item"><a class="page-link" href="?'.http_build_query(array_merge($_GET, ['page' => 1])).'">1</a></li>';
+                                        if ($from > 2) {
+                                            echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                        }
+                                    }
+                                    
+                                    for ($i = $from; $i <= $to; $i++): ?>
+                                        <li class="page-item<?= $i == $page ? ' active' : '' ?>">
+                                            <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>">
+                                                <?= $i ?>
+                                            </a>
+                                        </li>
+                                    <?php endfor; 
+                                    
+                                    if ($to < $totalPages) {
+                                        if ($to < $totalPages - 1) {
+                                            echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                        }
+                                        echo '<li class="page-item"><a class="page-link" href="?'.http_build_query(array_merge($_GET, ['page' => $totalPages])).'">'.$totalPages.'</a></li>';
+                                    }
+                                    ?>
+                                    
+                                    <?php // Tombol Next ?>
+                                    <li class="page-item<?= $page >= $totalPages ? ' disabled' : '' ?>">
+                                        <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>">
                                             <i class="bi bi-chevron-right"></i>
                                         </a>
                                     </li>
-                                <?php endif; ?>
-                            </ul>
-                        </nav>
+                                    
+                                </ul>
+                            </nav>
+                        </div>
                     <?php endif; ?>
                 <?php endif; ?>
             </div>
         </div>
     </section>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handler khusus untuk tombol RESTORE
+    document.querySelectorAll('[data-confirm-restore]').forEach(function(button) {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const href = this.getAttribute('href');
+            const itemName = this.dataset.itemName || 'item ini';
+
+            notify.confirm({
+                type: 'info', // Menggunakan 'info' atau 'success' untuk restore
+                title: 'Restore Item?',
+                message: `Anda yakin ingin me-restore item "${itemName}"? Item akan dikembalikan ke modul asalnya.`,
+                confirmText: 'Ya, Restore',
+                cancelText: 'Batal',
+                onConfirm: function() {
+                    notify.loading('Memulihkan item...');
+                    window.location.href = href;
+                }
+            });
+        });
+    });
+});
+</script>
 
 <?php include '../../includes/footer.php'; ?>

@@ -1,0 +1,44 @@
+/* _custom-variables.scss */
+
+/* Root level CSS variables for dynamic color theme override */
+:root {
+  --primary-color: #435ebe;
+  --secondary-color: #6c757d;
+  --success-color: #198754;
+  --danger-color: #dc3545;
+  --warning-color: #ffc107;
+  --info-color: #0dcaf0;
+  --light-color: #f8f9fa;
+  --dark-color: #212529;
+
+  /* Shades for primary (optional) */
+  --primary-color-100: #e1e6ff;
+  --primary-color-200: #c3cdfd;
+  --primary-color-300: #a5b4fc;
+  --primary-color-400: #879bfa;
+  --primary-color-500: var(--primary-color);
+  --primary-color-600: #3a4db8;
+  --primary-color-700: #2e3c8a;
+  --primary-color-800: #22295b;
+  --primary-color-900: #15182d;
+
+  /* Text colors */
+  --text-primary: var(--primary-color);
+  --text-secondary: var(--secondary-color);
+  --text-success: var(--success-color);
+  --text-danger: var(--danger-color);
+  --text-warning: var(--warning-color);
+  --text-info: var(--info-color);
+  --text-light: var(--light-color);
+  --text-dark: var(--dark-color);
+
+  /* Background colors */
+  --bg-primary: var(--primary-color);
+  --bg-secondary: var(--secondary-color);
+  --bg-success: var(--success-color);
+  --bg-danger: var(--danger-color);
+  --bg-warning: var(--warning-color);
+  --bg-info: var(--info-color);
+  --bg-light: var(--light-color);
+  --bg-dark: var(--dark-color);
+}
