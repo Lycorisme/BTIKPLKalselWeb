@@ -1,7 +1,7 @@
 <?php
 /**
  * Settings Management - Complete with Logo Text & Copyright
- * Single page untuk manage semua settings
+ * WITH CUSTOM NOTIFICATIONS SYSTEM
  */
 
 require_once '../../includes/auth_check.php';
@@ -144,21 +144,16 @@ include '../../includes/header.php';
     </div>
 
     <section class="section">
+        <!-- ERROR HANDLING - Hanya tampilkan jika ada error validator -->
         <?php if ($validator && $validator->getError('general')): ?>
-            <div class="alert alert-danger alert-dismissible fade show">
-                <?= $validator->getError('general') ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                notify.error('<?= addslashes($validator->getError('general')) ?>');
+            });
+            </script>
         <?php endif; ?>
         
-        <?php if ($alert = getAlert()): ?>
-            <div class="alert alert-<?= $alert['type'] ?> alert-dismissible fade show">
-                <?= $alert['message'] ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        <?php endif; ?>
-        
-        <form method="POST" enctype="multipart/form-data">
+        <form method="POST" enctype="multipart/form-data" id="settingsForm">
             <?= csrfField() ?>
             
             <div class="row">
@@ -376,13 +371,44 @@ include '../../includes/header.php';
                             </div>
                             
                             <!-- Twitter -->
-                            <div class="form-group mb-0">
+                            <div class="form-group mb-3">
                                 <label class="form-label">
                                     <i class="bi bi-twitter text-info"></i> Twitter/X URL
                                 </label>
                                 <input type="url" name="social_twitter" class="form-control" 
                                        value="<?= htmlspecialchars($settings['social_twitter'] ?? '') ?>"
                                        placeholder="https://twitter.com/yourprofile">
+                            </div>
+                            
+                            <!-- TikTok -->
+                            <div class="form-group mb-3">
+                                <label class="form-label">
+                                    <i class="bi bi-tiktok text-dark"></i> TikTok URL
+                                </label>
+                                <input type="url" name="social_tiktok" class="form-control" 
+                                       value="<?= htmlspecialchars($settings['social_tiktok'] ?? '') ?>"
+                                       placeholder="https://tiktok.com/@yourprofile">
+                            </div>
+                            
+                            <!-- LinkedIn -->
+                            <div class="form-group mb-3">
+                                <label class="form-label">
+                                    <i class="bi bi-linkedin text-primary"></i> LinkedIn URL
+                                </label>
+                                <input type="url" name="social_linkedin" class="form-control" 
+                                       value="<?= htmlspecialchars($settings['social_linkedin'] ?? '') ?>"
+                                       placeholder="https://linkedin.com/in/yourprofile">
+                            </div>
+                            
+                            <!-- WhatsApp -->
+                            <div class="form-group mb-0">
+                                <label class="form-label">
+                                    <i class="bi bi-whatsapp text-success"></i> WhatsApp Link/Number
+                                </label>
+                                <input type="text" name="social_whatsapp" class="form-control" 
+                                       value="<?= htmlspecialchars($settings['social_whatsapp'] ?? '') ?>"
+                                       placeholder="https://wa.me/628xxxxxxx atau +62 812-xxxx-xxxx">
+                                <small class="text-muted">Format: https://wa.me/628xxxxxxxxx (tanpa +, -, atau spasi)</small>
                             </div>
                         </div>
                     </div>
@@ -485,12 +511,16 @@ include '../../includes/header.php';
                 <div class="col-12">
                     <div class="card">
                         <div class="card-body">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="bi bi-save"></i> Simpan Semua Pengaturan
-                            </button>
-                            <a href="<?= ADMIN_URL ?>" class="btn btn-secondary btn-lg">
-                                <i class="bi bi-arrow-left"></i> Kembali
-                            </a>
+                            <div class="d-flex flex-column flex-sm-row gap-2">
+                                <button type="button" class="btn btn-primary btn-lg flex-grow-1" onclick="confirmSaveSettings()">
+                                    <i class="bi bi-save"></i> 
+                                    <span class="d-none d-sm-inline">Simpan Semua Pengaturan</span>
+                                    <span class="d-inline d-sm-none">Simpan</span>
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-lg" onclick="confirmBack()">
+                                    <i class="bi bi-arrow-left"></i> Kembali
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -514,6 +544,52 @@ function toggleBackgroundFields(type) {
 document.addEventListener('DOMContentLoaded', function() {
     toggleBackgroundFields('login');
 });
+
+/**
+ * CUSTOM NOTIFICATIONS IMPLEMENTATION
+ */
+
+// Confirm before save
+function confirmSaveSettings() {
+    notify.confirm({
+        type: 'warning',
+        title: 'Simpan Pengaturan?',
+        message: 'Anda akan menyimpan semua perubahan pengaturan website. Lanjutkan?',
+        confirmText: 'Ya, Simpan',
+        cancelText: 'Batal',
+        onConfirm: function() {
+            // Show loading
+            notify.loading('Menyimpan pengaturan...');
+            
+            // Submit form
+            document.getElementById('settingsForm').submit();
+        }
+    });
+}
+
+// Confirm before back
+function confirmBack() {
+    notify.confirm({
+        type: 'info',
+        title: 'Kembali ke Dashboard?',
+        message: 'Perubahan yang belum disimpan akan hilang. Yakin ingin kembali?',
+        confirmText: 'Ya, Kembali',
+        cancelText: 'Batal',
+        onConfirm: function() {
+            window.location.href = '<?= ADMIN_URL ?>';
+        }
+    });
+}
+
+// Show info alert on page load (optional demo)
+<?php if (isset($_GET['demo'])): ?>
+document.addEventListener('DOMContentLoaded', function() {
+    // Demo notification
+    setTimeout(function() {
+        notify.info('Halaman pengaturan siap digunakan!', 3000);
+    }, 500);
+});
+<?php endif; ?>
 </script>
 
 <?php include '../../includes/footer.php'; ?>
