@@ -1,9 +1,4 @@
 <?php
-/**
- * Admin Login Page
- * With Dynamic Logo & Favicon and Dynamic Background with Overlay Text and Remember Me feature
- */
-
 session_start();
 
 require_once '../config/config.php';
@@ -33,6 +28,7 @@ $bgColor = getSetting('login_background_color', '#667eea');
 $bgOverlayText = trim(getSetting('login_background_overlay_text', ''));
 
 $validator = null;
+$alertJS = "";
 
 // Initialize remembered email/password from cookies if exists
 $rememberedEmail = $_COOKIE['remember_email'] ?? '';
@@ -53,12 +49,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $db = Database::getInstance()->getConnection();
             
-            // Check user
-            $stmt = $db->prepare("SELECT * FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1");
+            // Check user must be is_active = 1 to login
+            $stmt = $db->prepare("SELECT * FROM users WHERE email = ? AND is_active = 1 AND deleted_at IS NULL LIMIT 1");
             $stmt->execute([$email]);
             $user = $stmt->fetch();
             
-            if ($user && password_verify($password, $user['password'])) {
+            if (!$user) {
+                // User not found or not active
+                $alertJS .= "notify.error('Email tidak ditemukan atau akun belum aktif.');";
+            } elseif (password_verify($password, $user['password'])) {
                 // Set session
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['user_name'] = $user['name'];
@@ -82,8 +81,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     setcookie('remember_password', '', time() - 3600, "/");
                 }
 
-                setAlert('success', 'Selamat datang, ' . $user['name'] . '!');
-                redirect(ADMIN_URL);
+                $alertJS .= "notify.success('Selamat datang, " . addslashes($user['name']) . "!');";
+                $alertJS .= "setTimeout(() => { window.location.href = '" . ADMIN_URL . "'; }, 1500);";
+                
             } else {
                 $validator->addError('general', 'Email atau password salah');
             }
@@ -91,133 +91,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             error_log($e->getMessage());
             $validator->addError('general', 'Terjadi kesalahan sistem');
         }
+    } else {
+        foreach (['email','password'] as $field)
+            if ($validator->getError($field))
+                $alertJS .= "notify.warning('".addslashes($validator->getError($field))."', 2500);";
+    }
+    if ($validator && $validator->getError('general')) {
+        $alertJS .= "notify.error('".addslashes($validator->getError('general'))."', 4000);";
     }
 }
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Login - <?= htmlspecialchars($siteName) ?></title>
-    
-    <!-- Favicon (Dynamic) -->
     <?php if ($siteFavicon): ?>
-        <link rel="icon" type="image/png" href="<?= uploadUrl($siteFavicon) ?>">
+    <link rel="icon" type="image/png" href="<?= uploadUrl($siteFavicon) ?>" />
     <?php endif; ?>
-    
-    <!-- Mazer CSS -->
-    <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/compiled/css/app.css">
-    <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/compiled/css/app-dark.css">
-    <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/compiled/css/auth.css">
-    
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
-    <style>
-        /* Overlay text styling */
-        #auth-right .overlay-text {
-            position: absolute;
-            top: 20%;
-            left: 50%;
-            transform: translateX(-50%);
-            color: rgba(255, 255, 255, 0.9);
-            text-shadow: 2px 2px 8px rgba(0,0,0,0.7);
-            font-size: 1.75rem;
-            max-width: 80%;
-            text-align: center;
-            font-weight: 600;
-            user-select: none;
-            pointer-events: none;
-            white-space: pre-wrap;
-            line-height: 1.4;
-            z-index: 10;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+    <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/compiled/css/app.css" />
+    <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/compiled/css/app-dark.css" />
+    <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/compiled/css/auth.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
 
-        #auth-right {
-            position: relative;
-            overflow: hidden;
-        }
-    </style>
+    <!-- Custom Notification Styles -->
+    <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/css/notifications.css?v=<?= time() ?>" />
 </head>
 <body>
     <script src="<?= ADMIN_URL ?>assets/static/js/initTheme.js"></script>
-    
+
     <div id="auth">
         <div class="row h-100">
             <div class="col-lg-5 col-12">
                 <div id="auth-left">
-                    <!-- Logo (Dynamic) -->
                     <div class="auth-logo mb-4">
                         <a href="<?= BASE_URL ?>" class="d-flex align-items-center">
                             <?php if ($siteLogo): ?>
-                                <img src="<?= uploadUrl($siteLogo) ?>" alt="Logo" style="height: 50px;" class="me-2">
+                            <img src="<?= uploadUrl($siteLogo) ?>" alt="Logo" style="height: 50px;" class="me-2" />
                             <?php endif; ?>
-                            
                             <?php if ($showLogoText == '1'): ?>
-                                <span style="font-size: 1.5rem; font-weight: 600; color: var(--bs-primary);">
-                                    <?= htmlspecialchars($siteLogoText) ?>
-                                </span>
+                            <span style="font-size: 1.5rem; font-weight: 600; color: var(--bs-primary);">
+                                <?= htmlspecialchars($siteLogoText) ?>
+                            </span>
                             <?php endif; ?>
                         </a>
                     </div>
-                    
+
                     <h1 class="auth-title">Log in.</h1>
                     <p class="auth-subtitle mb-5">Masukkan email dan password Anda untuk login ke sistem.</p>
 
-                    <?php if ($validator && $validator->getError('general')): ?>
-                        <div class="alert alert-danger alert-dismissible fade show">
-                            <i class="bi bi-x-circle"></i> <?= $validator->getError('general') ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    <?php endif; ?>
-
-                    <form method="POST" novalidate>
+                    <form method="POST" novalidate autocomplete="off">
                         <div class="form-group position-relative has-icon-left mb-4">
-                            <input type="email" name="email" 
-                                   class="form-control form-control-xl <?= $validator && $validator->getError('email') ? 'is-invalid' : '' ?>" 
-                                   placeholder="Email" 
-                                   value="<?= htmlspecialchars($_POST['email'] ?? $rememberedEmail) ?>" 
-                                   required autofocus>
+                            <input type="email" name="email"
+                                class="form-control form-control-xl <?= $validator && $validator->getError('email') ? 'is-invalid' : '' ?>"
+                                placeholder="Email"
+                                value="<?= htmlspecialchars($_POST['email'] ?? $rememberedEmail) ?>"
+                                required autofocus autocomplete="email" />
                             <div class="form-control-icon">
                                 <i class="bi bi-person"></i>
                             </div>
-                            <?php if ($validator && $validator->getError('email')): ?>
-                                <div class="invalid-feedback"><?= $validator->getError('email') ?></div>
-                            <?php endif; ?>
                         </div>
-                        
+
                         <div class="form-group position-relative has-icon-left mb-4">
-                            <input type="password" name="password" 
-                                   class="form-control form-control-xl <?= $validator && $validator->getError('password') ? 'is-invalid' : '' ?>" 
-                                   placeholder="Password" 
-                                   value="<?= htmlspecialchars($rememberedPassword) ?>"
-                                   required>
+                            <input type="password" name="password"
+                                class="form-control form-control-xl <?= $validator && $validator->getError('password') ? 'is-invalid' : '' ?>"
+                                placeholder="Password"
+                                value="<?= htmlspecialchars($rememberedPassword) ?>"
+                                required autocomplete="current-password" />
                             <div class="form-control-icon">
                                 <i class="bi bi-shield-lock"></i>
                             </div>
-                            <?php if ($validator && $validator->getError('password')): ?>
-                                <div class="invalid-feedback"><?= $validator->getError('password') ?></div>
-                            <?php endif; ?>
                         </div>
-                        
+
                         <div class="form-check form-check-lg d-flex align-items-end mb-4">
                             <input class="form-check-input me-2" type="checkbox" name="remember" id="flexCheckDefault"
-                            <?= $rememberedEmail ? 'checked' : '' ?>>
+                                <?= $rememberedEmail ? 'checked' : '' ?> />
                             <label class="form-check-label text-gray-600" for="flexCheckDefault">
                                 Ingat saya
                             </label>
                         </div>
-                        
+
                         <button type="submit" class="btn btn-primary btn-block btn-lg shadow-lg mt-3">
                             <i class="bi bi-box-arrow-in-right"></i> Log in
                         </button>
                     </form>
-                    
+
                     <div class="text-center mt-5 text-lg fs-4">
                         <p class="text-gray-600">
-                            Lupa password? 
+                            Lupa password?
                             <a href="<?= ADMIN_URL ?>forgot-password.php" class="font-bold">Reset Password</a>
                         </p>
                         <p>
@@ -233,7 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
             </div>
-            
+
             <div class="col-lg-7 d-none d-lg-block">
                 <div id="auth-right" style="<?= generateBackgroundStyle($bgType, $bgImage, $bgGradient, $bgColor) ?>">
                     <?php if ($bgType === 'image' && !empty($bgOverlayText)): ?>
@@ -243,7 +206,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
     </div>
-    
+
     <script src="<?= ADMIN_URL ?>assets/static/js/components/dark.js"></script>
+    <script src="<?= ADMIN_URL ?>assets/js/notifications.js?v=<?= time() ?>"></script>
+    <?php if (!empty($alertJS)): ?>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            <?= $alertJS ?>
+        });
+    </script>
+    <?php endif; ?>
 </body>
 </html>

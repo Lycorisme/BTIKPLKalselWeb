@@ -47,7 +47,8 @@ $roleOptions = [
 $activeOptions = [
     '' => 'Semua Status',
     '1' => 'Aktif',
-    '0' => 'Tidak Aktif'
+    '0' => 'Tidak Aktif',
+    '3' => 'Baru (Pending)'
 ];
 $perPageOptions = [10,25,50,100];
 $deletedOptions = [
@@ -175,7 +176,7 @@ include '../../includes/header.php';
                                 <th>Role</th>
                                 <th>Status</th>
                                 <th>Last Login</th>
-                                <th class="text-center" style="width:180px">Aksi</th>
+                                <th class="text-center" style="width:230px">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -201,8 +202,10 @@ include '../../includes/header.php';
                                     <td><?= htmlspecialchars($user['email']) ?></td>
                                     <td><?= getRoleBadge($user['role']) ?></td>
                                     <td>
-                                        <?php if ($user['is_active']): ?>
+                                        <?php if ($user['is_active'] == 1): ?>
                                             <span class="badge bg-success">Aktif</span>
+                                        <?php elseif ($user['is_active'] == 3): ?>
+                                            <span class="badge bg-warning">Pending</span>
                                         <?php else: ?>
                                             <span class="badge bg-secondary">Tidak Aktif</span>
                                         <?php endif ?>
@@ -219,17 +222,40 @@ include '../../includes/header.php';
                                                 <strong>Deleted at <?= formatTanggal($user['deleted_at'], 'd M Y H:i') ?></strong>
                                             </span>
                                         <?php else: ?>
-                                            <div class="btn-group btn-group-sm">
-                                                <a href="users_view.php?id=<?= $user['id'] ?>" class="btn btn-info" title="Detail"><i class="bi bi-eye"></i></a>
-                                                <a href="users_edit.php?id=<?= $user['id'] ?>" class="btn btn-warning" title="Edit"><i class="bi bi-pencil"></i></a>
-                                                <?php if($user['id']!=getCurrentUser()['id']): ?>
-                                                <a href="users_delete.php?id=<?= $user['id'] ?>" class="btn btn-danger"
-                                                   data-confirm-delete
-                                                   data-title="<?= htmlspecialchars($user['name']) ?>"
-                                                   data-message="User &quot;<?= htmlspecialchars($user['name']) ?>&quot; akan dipindahkan ke Trash. Lanjutkan?"
-                                                   data-loading-text="Menghapus user..." title="Hapus">
-                                                   <i class="bi bi-trash"></i>
-                                                </a>
+                                            <div class="btn-group btn-group-sm gap-1">
+                                                <?php if($user['is_active'] == 3): ?>
+                                                    <!-- Hanya tampilkan ACC dan Reject untuk status Pending dengan konfirmasi -->
+                                                    <button type="button" 
+                                                       class="btn btn-success btn-acc-user" 
+                                                       title="ACC Akun Baru"
+                                                       data-id="<?= $user['id'] ?>"
+                                                       data-name="<?= htmlspecialchars($user['name']) ?>"
+                                                       data-email="<?= htmlspecialchars($user['email']) ?>">
+                                                        <i class="bi bi-check2-circle"></i>
+                                                    </button>
+                                                    <button type="button" 
+                                                       class="btn btn-danger btn-reject-user" 
+                                                       title="Tolak Akun Baru"
+                                                       data-id="<?= $user['id'] ?>"
+                                                       data-name="<?= htmlspecialchars($user['name']) ?>"
+                                                       data-email="<?= htmlspecialchars($user['email']) ?>">
+                                                        <i class="bi bi-x-circle"></i>
+                                                    </button>
+                                                <?php else: ?>
+                                                    <!-- Tampilkan tombol normal untuk user aktif/tidak aktif -->
+                                                    <a href="users_view.php?id=<?= $user['id'] ?>" class="btn btn-info" title="Detail"><i class="bi bi-eye"></i></a>
+                                                    <a href="users_edit.php?id=<?= $user['id'] ?>" class="btn btn-warning" title="Edit"><i class="bi bi-pencil"></i></a>
+                                                    <?php if($user['id']!=getCurrentUser()['id']): ?>
+                                                        <a href="users_delete.php?id=<?= $user['id'] ?>" 
+                                                           class="btn btn-danger"
+                                                           data-confirm-delete
+                                                           data-title="<?= htmlspecialchars($user['name']) ?>"
+                                                           data-message="User &quot;<?= htmlspecialchars($user['name']) ?>&quot; akan dipindahkan ke Trash. Lanjutkan?"
+                                                           data-loading-text="Menghapus user..." 
+                                                           title="Hapus">
+                                                            <i class="bi bi-trash"></i>
+                                                        </a>
+                                                    <?php endif ?>
                                                 <?php endif ?>
                                             </div>
                                         <?php endif ?>
@@ -275,5 +301,136 @@ include '../../includes/header.php';
         </div>
     </section>
 </div>
+
+<script>
+// Custom Notification Handler untuk ACC dan Reject User
+document.addEventListener('DOMContentLoaded', function() {
+    // Handler untuk tombol ACC
+    document.querySelectorAll('.btn-acc-user').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const userId = this.dataset.id;
+            const userName = this.dataset.name;
+            const userEmail = this.dataset.email;
+            
+            showConfirmAlert({
+                type: 'warning',
+                title: 'Konfirmasi Aktivasi Akun',
+                message: `Apakah Anda yakin ingin mengaktifkan akun berikut?<br><br><strong>${userName}</strong><br><small class="text-muted">${userEmail}</small>`,
+                confirmText: 'Ya, Aktifkan',
+                cancelText: 'Batal',
+                onConfirm: function() {
+                    showLoading('Mengaktifkan akun...');
+                    window.location.href = `users_acc.php?id=${userId}`;
+                }
+            });
+        });
+    });
+    
+    // Handler untuk tombol Reject
+    document.querySelectorAll('.btn-reject-user').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const userId = this.dataset.id;
+            const userName = this.dataset.name;
+            const userEmail = this.dataset.email;
+            
+            showConfirmAlert({
+                type: 'danger',
+                title: 'Konfirmasi Penolakan Akun',
+                message: `Apakah Anda yakin ingin menolak akun berikut?<br><br><strong>${userName}</strong><br><small class="text-muted">${userEmail}</small><br><br><span class="text-danger">Akun akan dinonaktifkan dan user tidak dapat login.</span>`,
+                confirmText: 'Ya, Tolak',
+                cancelText: 'Batal',
+                onConfirm: function() {
+                    showLoading('Menolak akun...');
+                    window.location.href = `users_reject.php?id=${userId}`;
+                }
+            });
+        });
+    });
+});
+
+// Function untuk menampilkan konfirmasi alert
+function showConfirmAlert(options) {
+    const overlay = document.createElement('div');
+    overlay.className = 'btikp-alert-overlay';
+    
+    const alertBox = document.createElement('div');
+    alertBox.className = `btikp-alert btikp-alert-${options.type || 'warning'}`;
+    
+    // Icon berdasarkan type
+    let iconClass = 'bi-question-circle';
+    if (options.type === 'success') iconClass = 'bi-check-circle';
+    if (options.type === 'danger' || options.type === 'error') iconClass = 'bi-exclamation-circle';
+    if (options.type === 'warning') iconClass = 'bi-exclamation-triangle';
+    if (options.type === 'info') iconClass = 'bi-info-circle';
+    
+    alertBox.innerHTML = `
+        <div class="btikp-alert-icon">
+            <i class="bi ${iconClass}"></i>
+        </div>
+        <div class="btikp-alert-title">${options.title || 'Konfirmasi'}</div>
+        <div class="btikp-alert-message">${options.message || 'Apakah Anda yakin?'}</div>
+        <div class="btikp-alert-actions">
+            <button class="btikp-btn btikp-btn-secondary btn-cancel">${options.cancelText || 'Batal'}</button>
+            <button class="btikp-btn btikp-btn-${options.type || 'warning'} btn-confirm">${options.confirmText || 'Ya'}</button>
+        </div>
+    `;
+    
+    overlay.appendChild(alertBox);
+    document.body.appendChild(overlay);
+    
+    setTimeout(() => overlay.classList.add('show'), 10);
+    
+    // Handler tombol Batal
+    alertBox.querySelector('.btn-cancel').addEventListener('click', function() {
+        overlay.classList.remove('show');
+        setTimeout(() => overlay.remove(), 300);
+        if (options.onCancel) options.onCancel();
+    });
+    
+    // Handler tombol Konfirmasi
+    alertBox.querySelector('.btn-confirm').addEventListener('click', function() {
+        overlay.classList.remove('show');
+        setTimeout(() => overlay.remove(), 300);
+        if (options.onConfirm) options.onConfirm();
+    });
+    
+    // Close on overlay click
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) {
+            overlay.classList.remove('show');
+            setTimeout(() => overlay.remove(), 300);
+            if (options.onCancel) options.onCancel();
+        }
+    });
+}
+
+// Function untuk menampilkan loading overlay
+function showLoading(message) {
+    const overlay = document.createElement('div');
+    overlay.className = 'btikp-loading-overlay';
+    overlay.id = 'btikp-loading';
+    
+    overlay.innerHTML = `
+        <div class="btikp-loading">
+            <div class="btikp-loading-spinner"></div>
+            <div class="btikp-loading-message">${message || 'Memproses...'}</div>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.classList.add('show'), 10);
+}
+
+// Function untuk hide loading
+function hideLoading() {
+    const overlay = document.getElementById('btikp-loading');
+    if (overlay) {
+        overlay.classList.remove('show');
+        setTimeout(() => overlay.remove(), 300);
+    }
+}
+</script>
 
 <?php include '../../includes/footer.php'; ?>

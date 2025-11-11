@@ -295,6 +295,31 @@
     font-weight: 500;
 }
 
+/* Overlay Background Text (.overlay-text) */
+#auth-right .overlay-text {
+    position: absolute;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 2px 2px 8px rgba(0,0,0,0.7);
+    font-size: 1.75rem;
+    max-width: 80%;
+    text-align: center;
+    font-weight: 600;
+    user-select: none;
+    pointer-events: none;
+    white-space: pre-wrap;
+    line-height: 1.4;
+    z-index: 10;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#auth-right {
+    position: relative;
+    overflow: hidden;
+}
+
 /* Dark Mode Support */
 [data-bs-theme="dark"] .btikp-toast {
     background: #2d3135;
@@ -335,23 +360,18 @@
         left: 10px;
         max-width: none;
     }
-    
     .btikp-toast {
         min-width: auto;
     }
-    
     .btikp-alert {
         padding: 24px;
     }
-    
     .btikp-alert-icon {
         font-size: 48px;
     }
-    
     .btikp-alert-title {
         font-size: 20px;
     }
-    
     .btikp-alert-message {
         font-size: 14px;
     }
