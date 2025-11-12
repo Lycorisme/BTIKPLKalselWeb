@@ -50,9 +50,10 @@ $totalItems = (int)$stmtCount->fetchColumn();
 $totalPages = max(1, ceil($totalItems / $perPage));
 $offset = ($page - 1) * $perPage;
 
-$sql = "SELECT p.*, c.name AS category_name 
+$sql = "SELECT p.*, c.name AS category_name, u.name as author_name 
         FROM posts p 
         LEFT JOIN post_categories c ON p.category_id = c.id 
+        LEFT JOIN users u ON p.author_id = u.id
         $whereSql 
         ORDER BY p.created_at DESC 
         LIMIT $perPage OFFSET $offset";
@@ -71,6 +72,17 @@ $perPageOps = [5, 10, 25, 50, 100];
 ?>
 
 <?php include '../../includes/header.php'; ?>
+
+<style>
+.truncate-title {
+    display: inline-block;
+    max-width: 400px; /* Anda bisa sesuaikan lebar maksimum judul di sini */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: top; /* Agar sejajar dengan badge 'Featured' jika ada */
+}
+</style>
 
 <div class="page-heading">
     <div class="page-title">
@@ -173,7 +185,9 @@ $perPageOps = [5, 10, 25, 50, 100];
                         <tr <?= $isTrashed ? 'class="table-danger text-muted"' : '' ?>>
                             <td><?= $offset + $i + 1 ?></td>
                             <td>
-                                <strong><?= htmlspecialchars($post['title']) ?></strong>
+                                <strong class="truncate-title" title="<?= htmlspecialchars($post['title']) ?>">
+                                    <?= htmlspecialchars($post['title']) ?>
+                                </strong>
                                 <?php if (!empty($post['is_featured'])): ?>
                                     <span class="badge bg-warning text-dark ms-1">
                                         <i class="bi bi-star-fill"></i> Featured
@@ -214,7 +228,6 @@ $perPageOps = [5, 10, 25, 50, 100];
                     </tbody>
                 </table>
             </div>
-            <!-- Pagination bawah always visible -->
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
                 <div>
                     <small class="text-muted">Halaman <?= $page ?> dari <?= $totalPages ?> | Menampilkan <?= min($perPage, $totalItems - $offset) ?> dari <?= $totalItems ?> post</small>

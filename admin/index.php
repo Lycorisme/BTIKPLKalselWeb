@@ -103,16 +103,26 @@ $postsByCategory = $stmt->fetchAll();
 include 'includes/header.php';
 ?>
 
-<!-- Page Heading -->
+<style>
+    .truncate-text-title {
+        white-space: nowrap;      /* Mencegah teks pindah baris */
+        overflow: hidden;         /* Sembunyikan teks yang berlebih */
+        text-overflow: ellipsis;  /* Tampilkan "..." */
+        max-width: 95%;           /* Beri sedikit ruang untuk badge */
+    }
+
+    /* Memastikan card "Recent Posts" memiliki tinggi yang konsisten */
+    .list-group-item-action {
+        min-height: 62px; /* Sesuaikan nilainya jika perlu */
+    }
+</style>
 <div class="page-heading">
     <h3>Dashboard Overview</h3>
 </div>
 
-<!-- Statistics Cards -->
 <section class="row">
     <div class="col-12 col-lg-12">
         <div class="row">
-            <!-- Total Posts -->
             <div class="col-6 col-lg-3 col-md-6">
                 <div class="card">
                     <div class="card-body px-4 py-4-5">
@@ -131,7 +141,6 @@ include 'includes/header.php';
                 </div>
             </div>
             
-            <!-- Published -->
             <div class="col-6 col-lg-3 col-md-6">
                 <div class="card">
                     <div class="card-body px-4 py-4-5">
@@ -150,7 +159,6 @@ include 'includes/header.php';
                 </div>
             </div>
             
-            <!-- Total Views -->
             <div class="col-6 col-lg-3 col-md-6">
                 <div class="card">
                     <div class="card-body px-4 py-4-5">
@@ -169,7 +177,6 @@ include 'includes/header.php';
                 </div>
             </div>
             
-            <!-- Draft -->
             <div class="col-6 col-lg-3 col-md-6">
                 <div class="card">
                     <div class="card-body px-4 py-4-5">
@@ -190,7 +197,6 @@ include 'includes/header.php';
         </div>
         
         <div class="row">
-            <!-- Chart Section -->
             <div class="col-12 col-xl-8">
                 <div class="card">
                     <div class="card-header">
@@ -201,7 +207,6 @@ include 'includes/header.php';
                     </div>
                 </div>
                 
-                <!-- Posts by Category -->
                 <div class="card">
                     <div class="card-header">
                         <h4>Posts by Category</h4>
@@ -212,9 +217,7 @@ include 'includes/header.php';
                 </div>
             </div>
             
-            <!-- Sidebar -->
             <div class="col-12 col-xl-4">
-                <!-- Recent Posts -->
                 <div class="card">
                     <div class="card-header">
                         <h4>Recent Posts</h4>
@@ -226,7 +229,10 @@ include 'includes/header.php';
                                     <a href="<?= ADMIN_URL ?>modules/posts/posts_edit.php?id=<?= $post['id'] ?>" 
                                        class="list-group-item list-group-item-action">
                                         <div class="d-flex w-100 justify-content-between">
-                                            <h6 class="mb-1"><?= truncateText($post['title'], 40) ?></h6>
+                                            
+                                            <h6 class="mb-1 truncate-text-title" title="<?= htmlspecialchars($post['title']) ?>">
+                                                <?= htmlspecialchars($post['title']) ?>
+                                            </h6>
                                             <?= getStatusBadge($post['status']) ?>
                                         </div>
                                         <small class="text-muted">
@@ -246,7 +252,6 @@ include 'includes/header.php';
                     </div>
                 </div>
                 
-                <!-- Popular Posts -->
                 <div class="card">
                     <div class="card-header">
                         <h4>Most Popular Posts</h4>
@@ -257,12 +262,12 @@ include 'includes/header.php';
                                 <?php foreach ($popularPosts as $post): ?>
                                     <div class="list-group-item">
                                         <div class="d-flex justify-content-between align-items-start">
-                                            <div class="flex-grow-1">
-                                                <h6 class="mb-1"><?= truncateText($post['title'], 35) ?></h6>
+                                            <div class="flex-grow-1" style="overflow: hidden;"> <h6 class="mb-1 truncate-text-title" title="<?= htmlspecialchars($post['title']) ?>">
+                                                    <?= htmlspecialchars($post['title']) ?>
+                                                </h6>
                                                 <small class="text-muted"><?= $post['category_name'] ?></small>
                                             </div>
-                                            <span class="badge bg-primary rounded-pill">
-                                                <?= formatNumber($post['view_count']) ?>
+                                            <span class="badge bg-primary rounded-pill ms-2"> <?= formatNumber($post['view_count']) ?>
                                             </span>
                                         </div>
                                     </div>
@@ -276,7 +281,6 @@ include 'includes/header.php';
             </div>
         </div>
         
-        <!-- Recent Activities -->
         <div class="row">
             <div class="col-12">
                 <div class="card">
@@ -334,7 +338,6 @@ include 'includes/header.php';
     </div>
 </section>
 
-<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 // Posts per Month Chart
@@ -390,7 +393,9 @@ const categoryLabels = categoryData.map(item => item.name);
 const categoryCounts = categoryData.map(item => parseInt(item.count));
 
 new Chart(categoryChartCtx, {
+    // ===== DIPERBAIKI: Ubah ke bar horizontal =====
     type: 'bar',
+    // ============================================
     data: {
         labels: categoryLabels,
         datasets: [{
@@ -414,15 +419,23 @@ new Chart(categoryChartCtx, {
         }]
     },
     options: {
+        // ===== DIPERBAIKI: Tambahkan indexAxis =====
+        indexAxis: 'y', // Ini yang mengubahnya jadi horizontal
+        // ==========================================
         responsive: true,
         plugins: {
-            legend: { display: false }
+            legend: { display: false } // Sembunyikan legenda, tidak perlu
         },
         scales: {
-            y: {
+            // ===== DIPERBAIKI: Tukar x dan y =====
+            x: { // Sumbu X sekarang adalah 'count'
                 beginAtZero: true,
                 ticks: { stepSize: 1 }
+            },
+            y: { // Sumbu Y sekarang adalah 'kategori'
+                // tidak perlu 'beginAtZero'
             }
+            // ====================================
         }
     }
 });
