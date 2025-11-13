@@ -1,10 +1,15 @@
 <?php
 /**
- * Single Post Detail Page
- * FIXED: Comments polymorphic + Sidebar widgets
+ * Single Post Detail Page - Dynamic Version v2.0
+ * Fully integrated with settings table
+ * Features: Comments, Likes, Related Posts, Complete Sidebar, Share Buttons
  */
 
 require_once 'config.php';
+
+// Dynamic settings
+$siteName = getSetting('site_name', 'BTIKP Kalimantan Selatan');
+$siteTagline = getSetting('site_tagline', 'Balai Teknologi Informasi dan Komunikasi Pendidikan');
 
 // Get slug from URL
 $slug = $_GET['slug'] ?? '';
@@ -15,24 +20,43 @@ if (empty($slug)) {
 }
 
 // Get post details
-$stmt = $db->prepare("
-    SELECT p.*, 
-           c.name as category_name, 
-           c.slug as category_slug,
-           u.name as author_name
-    FROM posts p
-    LEFT JOIN post_categories c ON p.category_id = c.id
-    LEFT JOIN users u ON p.author_id = u.id
-    WHERE p.slug = ? AND p.status = 'published' AND p.deleted_at IS NULL
-    LIMIT 1
-");
-$stmt->execute([$slug]);
-$post = $stmt->fetch(PDO::FETCH_ASSOC);
+try {
+    $stmt = $db->prepare("
+        SELECT p.*, 
+               c.name as category_name, 
+               c.slug as category_slug,
+               u.name as author_name
+        FROM posts p
+        LEFT JOIN post_categories c ON p.category_id = c.id
+        LEFT JOIN users u ON p.author_id = u.id
+        WHERE p.slug = ? AND p.status = 'published' AND p.deleted_at IS NULL
+        LIMIT 1
+    ");
+    $stmt->execute([$slug]);
+    $post = $stmt->fetch(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    error_log("Post Query Error: " . $e->getMessage());
+    $post = null;
+}
 
 // 404 if post not found
 if (!$post) {
     header('HTTP/1.0 404 Not Found');
-    die('<h1>404 - Post Not Found</h1><a href="' . BASE_URL . 'posts.php">Back to posts</a>');
+    include 'templates/header.php';
+    ?>
+    <div class="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div class="text-center">
+            <h1 class="text-6xl font-bold text-gray-900 mb-4">404</h1>
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Artikel Tidak Ditemukan</h2>
+            <p class="text-gray-600 mb-8">Artikel yang Anda cari tidak tersedia atau telah dihapus.</p>
+            <a href="<?= BASE_URL ?>posts.php" class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-arrow-left mr-2"></i>Kembali ke Daftar Berita
+            </a>
+        </div>
+    </div>
+    <?php
+    include 'templates/footer.php';
+    exit;
 }
 
 // Format content dengan word-break
@@ -48,23 +72,29 @@ if (!empty($post['content'])) {
 try {
     increment_post_views($post['id']);
 } catch (Exception $e) {
-    error_log($e->getMessage());
+    error_log("Increment Views Error: " . $e->getMessage());
 }
 
 // Get post tags
-$stmt = $db->prepare("
-    SELECT t.* 
-    FROM tags t
-    INNER JOIN post_tags pt ON pt.tag_id = t.id
-    WHERE pt.post_id = ? AND t.deleted_at IS NULL
-");
-$stmt->execute([$post['id']]);
-$tags = $stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $stmt = $db->prepare("
+        SELECT t.* 
+        FROM tags t
+        INNER JOIN post_tags pt ON pt.tag_id = t.id
+        WHERE pt.post_id = ? AND t.deleted_at IS NULL
+    ");
+    $stmt->execute([$post['id']]);
+    $tags = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    error_log("Tags Query Error: " . $e->getMessage());
+    $tags = [];
+}
 
 // Get related posts
 try {
     $related_posts = get_related_posts($post['id'], $post['category_id'], 3);
 } catch (Exception $e) {
+    error_log("Related Posts Error: " . $e->getMessage());
     $related_posts = [];
 }
 
@@ -73,7 +103,6 @@ try {
     $likes_count = get_post_likes($post['id']);
     $has_liked = has_user_liked_post($post['id']);
     
-    // ✅ FIX: Query comments dengan polymorphic relationship
     $stmt = $db->prepare("SELECT COUNT(*) as count FROM comments WHERE commentable_type = 'post' AND commentable_id = ? AND status = 'approved'");
     $stmt->execute([$post['id']]);
     $comments_count = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
@@ -81,12 +110,12 @@ try {
     $likes_count = 0;
     $has_liked = false;
     $comments_count = 0;
-    error_log($e->getMessage());
+    error_log("Likes/Comments Error: " . $e->getMessage());
 }
 
 // Page variables
 $pageNamespace = 'post-detail';
-$pageTitle = $post['title'] . ' - ' . getSetting('site_name');
+$pageTitle = $post['title'] . ' - ' . $siteName;
 $pageDescription = truncateText($post['excerpt'] ?? strip_tags($post['content']), 160);
 $pageKeywords = !empty($tags) ? implode(', ', array_column($tags, 'name')) : '';
 $pageImage = get_featured_image($post['featured_image']);
@@ -100,19 +129,19 @@ include 'templates/header.php';
 <div class="bg-gray-100 py-4">
     <div class="container mx-auto px-4">
         <nav class="flex items-center flex-wrap gap-2 text-sm">
-            <a href="<?= BASE_URL ?>" class="text-blue-600 hover:text-blue-700">
+            <a href="<?= BASE_URL ?>" class="text-blue-600 hover:text-blue-700 transition">
                 <i class="fas fa-home"></i> Beranda
             </a>
             <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-            <a href="<?= BASE_URL ?>posts.php" class="text-blue-600 hover:text-blue-700">Berita</a>
+            <a href="<?= BASE_URL ?>posts.php" class="text-blue-600 hover:text-blue-700 transition">Berita</a>
             <?php if (!empty($post['category_name'])): ?>
             <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-            <a href="<?= BASE_URL ?>category.php?slug=<?= $post['category_slug'] ?>" class="text-blue-600 hover:text-blue-700">
+            <a href="<?= BASE_URL ?>category.php?slug=<?= $post['category_slug'] ?>" class="text-blue-600 hover:text-blue-700 transition">
                 <?= htmlspecialchars($post['category_name']) ?>
             </a>
             <?php endif; ?>
             <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-            <span class="text-gray-600"><?= truncateText($post['title'], 50) ?></span>
+            <span class="text-gray-600 truncate"><?= truncateText($post['title'], 50) ?></span>
         </nav>
     </div>
 </div>
@@ -124,13 +153,14 @@ include 'templates/header.php';
             
             <!-- Post Content (2/3 width) -->
             <div class="lg:col-span-2">
-                <article class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <article class="bg-white rounded-lg shadow-lg overflow-hidden" data-aos="fade-up">
                     
                     <!-- Featured Image -->
                     <?php if (!empty($post['featured_image'])): ?>
                     <img src="<?= uploadUrl($post['featured_image']) ?>" 
                          alt="<?= htmlspecialchars($post['title']) ?>"
                          class="w-full h-64 md:h-96 object-cover"
+                         loading="eager"
                          onerror="this.src='<?= BASE_URL ?>assets/images/blog-default.jpg'">
                     <?php endif; ?>
                     
@@ -164,7 +194,7 @@ include 'templates/header.php';
                             </div>
                             <div class="flex items-center">
                                 <i class="far fa-eye mr-2 text-blue-600"></i>
-                                <span><?= number_format($post['view_count']) ?></span>
+                                <span><?= number_format($post['view_count']) ?> kali dibaca</span>
                             </div>
                             <div class="flex items-center">
                                 <i class="far fa-comments mr-2 text-blue-600"></i>
@@ -175,24 +205,24 @@ include 'templates/header.php';
                             <div class="flex items-center gap-2 lg:ml-auto">
                                 <span class="text-xs font-medium">Bagikan:</span>
                                 <a href="https://www.facebook.com/sharer/sharer.php?u=<?= urlencode($pageUrl) ?>" 
-                                   target="_blank" rel="noopener" title="Facebook"
+                                   target="_blank" rel="noopener noreferrer" title="Bagikan ke Facebook"
                                    class="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded-full hover:bg-blue-700 transition">
                                     <i class="fab fa-facebook-f text-xs"></i>
                                 </a>
                                 <a href="https://twitter.com/intent/tweet?url=<?= urlencode($pageUrl) ?>&text=<?= urlencode($post['title']) ?>" 
-                                   target="_blank" rel="noopener" title="Twitter"
+                                   target="_blank" rel="noopener noreferrer" title="Bagikan ke Twitter"
                                    class="w-8 h-8 flex items-center justify-center bg-sky-500 text-white rounded-full hover:bg-sky-600 transition">
                                     <i class="fab fa-twitter text-xs"></i>
                                 </a>
                                 <a href="https://wa.me/?text=<?= urlencode($post['title'] . ' - ' . $pageUrl) ?>" 
-                                   target="_blank" rel="noopener" title="WhatsApp"
+                                   target="_blank" rel="noopener noreferrer" title="Bagikan ke WhatsApp"
                                    class="w-8 h-8 flex items-center justify-center bg-green-500 text-white rounded-full hover:bg-green-600 transition">
                                     <i class="fab fa-whatsapp text-xs"></i>
                                 </a>
                             </div>
                         </div>
                         
-                        <!-- Post Content (FIXED: word-break) -->
+                        <!-- Post Content -->
                         <div class="mb-8">
                             <div class="prose prose-lg max-w-none text-gray-700 leading-relaxed" style="word-break: break-word; overflow-wrap: break-word;">
                                 <?= $post['content'] ?>
@@ -230,18 +260,21 @@ include 'templates/header.php';
                 
                 <!-- Related Posts -->
                 <?php if (!empty($related_posts)): ?>
-                <div class="mt-12">
+                <div class="mt-12" data-aos="fade-up">
                     <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
                         <i class="fas fa-newspaper text-blue-600 mr-2"></i>
                         Artikel Terkait
                     </h2>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <?php foreach ($related_posts as $related): ?>
-                        <article class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition">
+                        <?php foreach ($related_posts as $index => $related): ?>
+                        <article class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition"
+                                 data-aos="fade-up"
+                                 data-aos-delay="<?= $index * 100 ?>">
                             <a href="<?= BASE_URL ?>post.php?slug=<?= $related['slug'] ?>" class="block overflow-hidden">
                                 <img src="<?= get_featured_image($related['featured_image']) ?>" 
                                      alt="<?= htmlspecialchars($related['title']) ?>"
-                                     class="w-full h-40 object-cover transform hover:scale-110 transition-transform duration-300">
+                                     class="w-full h-40 object-cover transform hover:scale-110 transition-transform duration-300"
+                                     loading="lazy">
                             </a>
                             <div class="p-4">
                                 <h3 class="font-bold mb-2 line-clamp-2">
@@ -262,7 +295,7 @@ include 'templates/header.php';
                 <?php endif; ?>
                 
                 <!-- Comments Section -->
-                <div class="mt-12 bg-white rounded-lg shadow-md p-6 md:p-8">
+                <div class="mt-12 bg-white rounded-lg shadow-md p-6 md:p-8" data-aos="fade-up">
                     <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
                         <i class="far fa-comments text-blue-600 mr-2"></i>
                         Komentar (<?= $comments_count ?>)
@@ -275,16 +308,19 @@ include 'templates/header.php';
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">Nama *</label>
                                 <input type="text" name="author_name" required
+                                       placeholder="Masukkan nama Anda"
                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">Email *</label>
                                 <input type="email" name="author_email" required
+                                       placeholder="contoh@email.com"
                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">Komentar *</label>
                                 <textarea name="content" rows="4" required
+                                          placeholder="Tulis komentar Anda di sini..."
                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
                             </div>
                         </div>
@@ -294,19 +330,20 @@ include 'templates/header.php';
                         </button>
                     </form>
                     
-                    <!-- Comments List (FIXED: polymorphic) -->
+                    <!-- Comments List -->
                     <div id="comments-list">
                         <?php
-                        $stmt = $db->prepare("
-                            SELECT * FROM comments 
-                            WHERE commentable_type = 'post' AND commentable_id = ? AND status = 'approved' AND parent_id IS NULL
-                            ORDER BY created_at DESC
-                        ");
-                        $stmt->execute([$post['id']]);
-                        $comments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                        
-                        if (!empty($comments)):
-                            foreach ($comments as $comment):
+                        try {
+                            $stmt = $db->prepare("
+                                SELECT * FROM comments 
+                                WHERE commentable_type = 'post' AND commentable_id = ? AND status = 'approved' AND parent_id IS NULL
+                                ORDER BY created_at DESC
+                            ");
+                            $stmt->execute([$post['id']]);
+                            $comments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                            
+                            if (!empty($comments)):
+                                foreach ($comments as $comment):
                         ?>
                         <div class="border-b border-gray-200 pb-6 mb-6 last:border-0">
                             <div class="flex items-start gap-4">
@@ -318,7 +355,7 @@ include 'templates/header.php';
                                         <span class="font-semibold text-gray-900"><?= htmlspecialchars($comment['name']) ?></span>
                                         <span class="text-xs text-gray-500">
                                             <i class="far fa-clock mr-1"></i>
-                                            <?= formatTanggal($comment['created_at'], 'd M Y') ?>
+                                            <?= formatTanggal($comment['created_at'], 'd M Y H:i') ?>
                                         </span>
                                     </div>
                                     <p class="text-gray-700 leading-relaxed"><?= nl2br(htmlspecialchars($comment['content'])) ?></p>
@@ -326,135 +363,187 @@ include 'templates/header.php';
                             </div>
                         </div>
                         <?php 
-                            endforeach;
-                        else:
+                                endforeach;
+                            else:
                         ?>
                         <div class="text-center py-12 bg-gray-50 rounded-lg">
                             <i class="far fa-comments text-6xl text-gray-300 mb-4"></i>
-                            <p class="text-gray-500 text-lg">Belum ada komentar. Jadilah yang pertama!</p>
+                            <p class="text-gray-500 text-lg">Belum ada komentar. Jadilah yang pertama berkomentar!</p>
                         </div>
-                        <?php endif; ?>
+                        <?php 
+                            endif;
+                        } catch (Exception $e) {
+                            error_log("Comments Query Error: " . $e->getMessage());
+                            echo '<p class="text-center text-gray-500 py-8">Gagal memuat komentar</p>';
+                        }
+                        ?>
                     </div>
                 </div>
             </div>
             
-            <!-- ✅ Sidebar (1/3 width) - LENGKAP DENGAN POPULAR/CATEGORY/TAGS -->
-            <div class="lg:col-span-1 space-y-6">
-                
-                <!-- Search Widget -->
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h3 class="text-lg font-bold mb-4 flex items-center">
-                        <i class="fas fa-search text-blue-600 mr-2"></i>
-                        Pencarian
-                    </h3>
-                    <form action="<?= BASE_URL ?>search.php" method="GET">
-                        <div class="flex">
-                            <input type="text" name="q" placeholder="Cari artikel..." 
-                                   class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-r-lg hover:bg-blue-700 transition">
-                                <i class="fas fa-search"></i>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                
-                <!-- Popular Posts Widget -->
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h3 class="text-lg font-bold mb-4 flex items-center">
-                        <i class="fas fa-fire text-orange-500 mr-2"></i>
-                        Berita Populer
-                    </h3>
-                    <?php
-                    $stmt = $db->query("
-                        SELECT id, title, slug, featured_image, created_at, view_count 
-                        FROM posts 
-                        WHERE status = 'published' AND deleted_at IS NULL 
-                        ORDER BY view_count DESC 
-                        LIMIT 5
-                    ");
-                    $popular = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                    foreach ($popular as $p):
-                    ?>
-                    <div class="flex gap-3 mb-4 pb-4 border-b last:border-0 last:mb-0 last:pb-0">
-                        <img src="<?= get_featured_image($p['featured_image']) ?>" 
-                             alt="<?= htmlspecialchars($p['title']) ?>"
-                             class="w-16 h-16 object-cover rounded flex-shrink-0">
-                        <div class="flex-1 min-w-0">
-                            <a href="<?= BASE_URL ?>post.php?slug=<?= $p['slug'] ?>" 
-                               class="font-semibold text-sm text-gray-900 hover:text-blue-600 line-clamp-2 block">
-                                <?= htmlspecialchars($p['title']) ?>
-                            </a>
-                            <div class="text-xs text-gray-500 mt-1 flex items-center gap-3">
-                                <span><i class="far fa-calendar mr-1"></i><?= formatTanggal($p['created_at'], 'd M Y') ?></span>
-                                <span><i class="far fa-eye mr-1"></i><?= number_format($p['view_count']) ?></span>
+            <!-- Sidebar (1/3 width) -->
+            <div class="lg:col-span-1">
+                <div class="sticky top-24 space-y-6">
+                    
+                    <!-- Search Widget -->
+                    <div class="bg-white rounded-lg shadow-md p-6" data-aos="fade-up">
+                        <h3 class="text-lg font-bold mb-4 flex items-center">
+                            <i class="fas fa-search text-blue-600 mr-2"></i>
+                            Pencarian
+                        </h3>
+                        <form action="<?= BASE_URL ?>search.php" method="GET">
+                            <div class="flex">
+                                <input type="text" name="q" placeholder="Cari artikel..." 
+                                       class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-r-lg hover:bg-blue-700 transition">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Popular Posts Widget -->
+                    <div class="bg-white rounded-lg shadow-md p-6" data-aos="fade-up" data-aos-delay="100">
+                        <h3 class="text-lg font-bold mb-4 flex items-center">
+                            <i class="fas fa-fire text-orange-500 mr-2"></i>
+                            Berita Populer
+                        </h3>
+                        <?php
+                        try {
+                            $stmt = $db->query("
+                                SELECT id, title, slug, featured_image, created_at, view_count 
+                                FROM posts 
+                                WHERE status = 'published' AND deleted_at IS NULL 
+                                ORDER BY view_count DESC 
+                                LIMIT 5
+                            ");
+                            $popular = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                            
+                            if (!empty($popular)):
+                                foreach ($popular as $p):
+                        ?>
+                        <div class="flex gap-3 mb-4 pb-4 border-b last:border-0 last:mb-0 last:pb-0">
+                            <img src="<?= get_featured_image($p['featured_image']) ?>" 
+                                 alt="<?= htmlspecialchars($p['title']) ?>"
+                                 class="w-16 h-16 object-cover rounded flex-shrink-0"
+                                 loading="lazy">
+                            <div class="flex-1 min-w-0">
+                                <a href="<?= BASE_URL ?>post.php?slug=<?= $p['slug'] ?>" 
+                                   class="font-semibold text-sm text-gray-900 hover:text-blue-600 line-clamp-2 block">
+                                    <?= htmlspecialchars($p['title']) ?>
+                                </a>
+                                <div class="text-xs text-gray-500 mt-1 flex items-center gap-3">
+                                    <span><i class="far fa-calendar mr-1"></i><?= formatTanggal($p['created_at'], 'd M Y') ?></span>
+                                    <span><i class="far fa-eye mr-1"></i><?= number_format($p['view_count']) ?></span>
+                                </div>
                             </div>
                         </div>
+                        <?php 
+                                endforeach;
+                            else:
+                        ?>
+                        <p class="text-gray-500 text-sm text-center py-4">Belum ada berita populer</p>
+                        <?php 
+                            endif;
+                        } catch (Exception $e) {
+                            error_log("Popular Posts Error: " . $e->getMessage());
+                            echo '<p class="text-gray-500 text-sm text-center py-4">Gagal memuat berita</p>';
+                        }
+                        ?>
                     </div>
-                    <?php endforeach; ?>
-                </div>
-                
-                <!-- Categories Widget -->
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h3 class="text-lg font-bold mb-4 flex items-center">
-                        <i class="fas fa-folder text-yellow-500 mr-2"></i>
-                        Kategori
-                    </h3>
-                    <?php
-                    $stmt = $db->query("
-                        SELECT c.*, COUNT(p.id) as post_count
-                        FROM post_categories c
-                        LEFT JOIN posts p ON p.category_id = c.id AND p.status = 'published' AND p.deleted_at IS NULL
-                        WHERE c.deleted_at IS NULL
-                        GROUP BY c.id
-                        ORDER BY c.name ASC
-                    ");
-                    $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                    ?>
-                    <div class="space-y-1">
-                        <?php foreach ($categories as $cat): ?>
-                        <a href="<?= BASE_URL ?>category.php?slug=<?= $cat['slug'] ?>" 
-                           class="flex justify-between items-center py-2 px-3 rounded hover:bg-gray-50 transition group">
-                            <span class="text-gray-700 group-hover:text-blue-600 flex items-center">
-                                <i class="fas fa-chevron-right mr-2 text-xs"></i>
-                                <span class="truncate"><?= htmlspecialchars($cat['name']) ?></span>
-                            </span>
-                            <span class="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded group-hover:bg-blue-600 group-hover:text-white transition flex-shrink-0 ml-2">
-                                <?= $cat['post_count'] ?>
-                            </span>
-                        </a>
-                        <?php endforeach; ?>
+                    
+                    <!-- Categories Widget -->
+                    <div class="bg-white rounded-lg shadow-md p-6" data-aos="fade-up" data-aos-delay="200">
+                        <h3 class="text-lg font-bold mb-4 flex items-center">
+                            <i class="fas fa-folder text-yellow-500 mr-2"></i>
+                            Kategori
+                        </h3>
+                        <?php
+                        try {
+                            $stmt = $db->query("
+                                SELECT c.*, COUNT(p.id) as post_count
+                                FROM post_categories c
+                                LEFT JOIN posts p ON p.category_id = c.id AND p.status = 'published' AND p.deleted_at IS NULL
+                                WHERE c.deleted_at IS NULL
+                                GROUP BY c.id
+                                ORDER BY c.name ASC
+                            ");
+                            $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                            
+                            if (!empty($categories)):
+                        ?>
+                        <div class="space-y-1">
+                            <?php foreach ($categories as $cat): ?>
+                            <a href="<?= BASE_URL ?>category.php?slug=<?= $cat['slug'] ?>" 
+                               class="flex justify-between items-center py-2 px-3 rounded hover:bg-gray-50 transition group">
+                                <span class="text-gray-700 group-hover:text-blue-600 flex items-center">
+                                    <i class="fas fa-chevron-right mr-2 text-xs"></i>
+                                    <span class="truncate"><?= htmlspecialchars($cat['name']) ?></span>
+                                </span>
+                                <span class="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded group-hover:bg-blue-600 group-hover:text-white transition flex-shrink-0 ml-2">
+                                    <?= $cat['post_count'] ?>
+                                </span>
+                            </a>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php 
+                            else:
+                        ?>
+                        <p class="text-gray-500 text-sm text-center py-4">Belum ada kategori</p>
+                        <?php 
+                            endif;
+                        } catch (Exception $e) {
+                            error_log("Categories Error: " . $e->getMessage());
+                            echo '<p class="text-gray-500 text-sm text-center py-4">Gagal memuat kategori</p>';
+                        }
+                        ?>
                     </div>
-                </div>
-                
-                <!-- Tags Widget -->
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h3 class="text-lg font-bold mb-4 flex items-center">
-                        <i class="fas fa-tags text-green-500 mr-2"></i>
-                        Tag Populer
-                    </h3>
-                    <?php
-                    $stmt = $db->query("
-                        SELECT t.*, COUNT(pt.post_id) as post_count
-                        FROM tags t
-                        INNER JOIN post_tags pt ON pt.tag_id = t.id
-                        INNER JOIN posts p ON p.id = pt.post_id AND p.status = 'published' AND p.deleted_at IS NULL
-                        WHERE t.deleted_at IS NULL
-                        GROUP BY t.id
-                        ORDER BY post_count DESC
-                        LIMIT 20
-                    ");
-                    $sidebar_tags = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                    ?>
-                    <div class="flex flex-wrap gap-2">
-                        <?php foreach ($sidebar_tags as $t): ?>
-                        <a href="<?= BASE_URL ?>tag.php?slug=<?= $t['slug'] ?>" 
-                           class="inline-block bg-gray-100 hover:bg-blue-600 hover:text-white text-gray-700 text-xs px-3 py-1 rounded-full transition">
-                            <i class="fas fa-tag mr-1"></i><?= htmlspecialchars($t['name']) ?> <span class="font-semibold">(<?= $t['post_count'] ?>)</span>
-                        </a>
-                        <?php endforeach; ?>
+                    
+                    <!-- Tags Widget -->
+                    <div class="bg-white rounded-lg shadow-md p-6" data-aos="fade-up" data-aos-delay="300">
+                        <h3 class="text-lg font-bold mb-4 flex items-center">
+                            <i class="fas fa-tags text-green-500 mr-2"></i>
+                            Tag Populer
+                        </h3>
+                        <?php
+                        try {
+                            $stmt = $db->query("
+                                SELECT t.*, COUNT(pt.post_id) as post_count
+                                FROM tags t
+                                INNER JOIN post_tags pt ON pt.tag_id = t.id
+                                INNER JOIN posts p ON p.id = pt.post_id AND p.status = 'published' AND p.deleted_at IS NULL
+                                WHERE t.deleted_at IS NULL
+                                GROUP BY t.id
+                                ORDER BY post_count DESC
+                                LIMIT 20
+                            ");
+                            $sidebar_tags = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                            
+                            if (!empty($sidebar_tags)):
+                        ?>
+                        <div class="flex flex-wrap gap-2">
+                            <?php foreach ($sidebar_tags as $t): ?>
+                            <a href="<?= BASE_URL ?>tag.php?slug=<?= $t['slug'] ?>" 
+                               class="inline-block bg-gray-100 hover:bg-blue-600 hover:text-white text-gray-700 text-xs px-3 py-1 rounded-full transition">
+                                <i class="fas fa-tag mr-1"></i><?= htmlspecialchars($t['name']) ?> 
+                                <span class="font-semibold">(<?= $t['post_count'] ?>)</span>
+                            </a>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php 
+                            else:
+                        ?>
+                        <p class="text-gray-500 text-sm text-center py-4">Belum ada tag</p>
+                        <?php 
+                            endif;
+                        } catch (Exception $e) {
+                            error_log("Tags Error: " . $e->getMessage());
+                            echo '<p class="text-gray-500 text-sm text-center py-4">Gagal memuat tag</p>';
+                        }
+                        ?>
                     </div>
+                    
                 </div>
-                
             </div>
             
         </div>
@@ -468,7 +557,6 @@ function toggleLike(postId) {
     const icon = btn.querySelector('i');
     const countSpan = document.getElementById('like-count');
     
-    // Disable button during request
     btn.disabled = true;
     
     fetch('<?= BASE_URL ?>api/like.php', {
@@ -479,20 +567,11 @@ function toggleLike(postId) {
         },
         body: JSON.stringify({ post_id: postId })
     })
-    .then(res => {
-        if (!res.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return res.json();
-    })
+    .then(res => res.ok ? res.json() : Promise.reject('Network error'))
     .then(data => {
-        console.log('Like response:', data);
-        
         if (data.success) {
-            // Update count
             countSpan.textContent = data.likes_count;
             
-            // Toggle button style
             if (data.action === 'liked') {
                 btn.classList.remove('bg-gray-200', 'text-gray-700');
                 btn.classList.add('bg-red-500', 'text-white');
@@ -505,15 +584,14 @@ function toggleLike(postId) {
                 icon.classList.add('far');
             }
         } else {
-            alert('Error: ' + (data.message || 'Something went wrong'));
+            alert('Error: ' + (data.message || 'Terjadi kesalahan'));
         }
     })
     .catch(err => {
         console.error('Like error:', err);
-        alert('Terjadi kesalahan saat like. Silakan coba lagi.');
+        alert('Gagal memproses like. Silakan coba lagi.');
     })
     .finally(() => {
-        // Re-enable button
         btn.disabled = false;
     });
 }
@@ -549,7 +627,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Disable submit
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Mengirim...';
         
@@ -557,21 +634,12 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             body: new FormData(this)
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
+        .then(response => response.ok ? response.json() : Promise.reject('HTTP error'))
         .then(data => {
             if (data.success) {
                 alert('✓ ' + data.message);
-                
-                // ✅ NEW: Reload page to show new comment
                 if (data.reload) {
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 500);
+                    setTimeout(() => window.location.reload(), 500);
                 } else {
                     commentForm.reset();
                 }
@@ -586,12 +654,16 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.innerHTML = originalHTML;
         });
     });
+    
+    // Initialize AOS
+    if (typeof AOS !== 'undefined') {
+        AOS.init({
+            duration: 600,
+            once: true,
+            offset: 100
+        });
+    }
 });
-
-
-// Log untuk debugging
-console.log('Post ID:', <?= $post['id'] ?>);
-console.log('BASE_URL:', '<?= BASE_URL ?>');
 </script>
 
 <?php include 'templates/footer.php'; ?>

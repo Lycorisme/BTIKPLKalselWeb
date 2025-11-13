@@ -1,23 +1,19 @@
 <?php
-/**
- * Homepage - BTIKP Kalimantan Selatan
- * Features:
- * - Banner slider dari admin
- * - Recent posts (6 latest)
- * - Featured services
- * - Site statistics
- * - Latest gallery albums
- */
 
 require_once 'config.php';
 
-// Page namespace untuk Barba.js
+// Page namespace
 $pageNamespace = 'home';
 
-// SEO Meta
-$pageTitle = getSetting('site_name', 'BTIKP Kalimantan Selatan') . ' - ' . getSetting('site_tagline', 'Balai Teknologi Informasi dan Komunikasi Pendidikan');
-$pageDescription = getSetting('site_description', 'Portal resmi Balai Teknologi Informasi dan Komunikasi Pendidikan Kalimantan Selatan');
-$pageKeywords = getSetting('site_keywords', 'btikp, kalsel, pendidikan, teknologi, informasi');
+// Dynamic SEO Meta from Settings
+$siteName = getSetting('site_name', 'BTIKP Kalimantan Selatan');
+$siteTagline = getSetting('site_tagline', 'Balai Teknologi Informasi dan Komunikasi Pendidikan');
+$siteDescription = getSetting('site_description', 'Portal resmi Balai Teknologi Informasi dan Komunikasi Pendidikan Kalimantan Selatan');
+$siteKeywords = getSetting('site_keywords', 'btikp, kalsel, pendidikan, teknologi, informasi');
+
+$pageTitle = $siteName . ' - ' . $siteTagline;
+$pageDescription = $siteDescription;
+$pageKeywords = $siteKeywords;
 $pageImage = get_site_logo();
 
 // Get active banners
@@ -61,9 +57,6 @@ $stmt = $db->query("
 ");
 $albums = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Get site statistics
-$stats = get_site_stats();
-
 // Include header
 include 'templates/header.php';
 ?>
@@ -103,8 +96,6 @@ include 'templates/header.php';
             </div>
             <?php endforeach; ?>
         </div>
-        
-
     </div>
 </section>
 <?php else: ?>
@@ -115,10 +106,10 @@ include 'templates/header.php';
     </div>
     <div class="container mx-auto px-4 text-center text-white relative z-10">
         <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold mb-4" data-aos="fade-up">
-            Selamat Datang di BTIKP Kalimantan Selatan
+            Selamat Datang di <?= htmlspecialchars($siteName) ?>
         </h1>
         <p class="text-xl mb-8 text-blue-100" data-aos="fade-up" data-aos-delay="100">
-            <?= htmlspecialchars(getSetting('site_tagline', 'Balai Teknologi Informasi dan Komunikasi Pendidikan')) ?>
+            <?= htmlspecialchars($siteTagline) ?>
         </p>
         <a href="<?= BASE_URL ?>contact.php" 
            class="inline-block bg-white text-blue-900 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg"
@@ -136,7 +127,7 @@ include 'templates/header.php';
     <div class="container mx-auto px-4">
         <div class="text-center mb-12" data-aos="fade-up">
             <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Berita Terbaru</h2>
-            <p class="text-gray-600">Informasi dan berita terkini dari BTIKP Kalimantan Selatan</p>
+            <p class="text-gray-600">Informasi dan berita terkini dari <?= htmlspecialchars($siteName) ?></p>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -148,7 +139,8 @@ include 'templates/header.php';
                 <a href="<?= BASE_URL ?>post.php?slug=<?= $post['slug'] ?>" class="block overflow-hidden">
                     <img src="<?= get_featured_image($post['featured_image']) ?>" 
                          alt="<?= htmlspecialchars($post['title']) ?>"
-                         class="w-full h-48 object-cover transform hover:scale-110 transition-transform duration-300">
+                         class="w-full h-48 object-cover transform hover:scale-110 transition-transform duration-300"
+                         loading="lazy">
                 </a>
                 
                 <!-- Content -->
@@ -224,7 +216,8 @@ include 'templates/header.php';
                 <?php if (!empty($service['image_path'])): ?>
                 <img src="<?= get_service_image($service['image_path']) ?>" 
                      alt="<?= htmlspecialchars($service['title']) ?>"
-                     class="w-20 h-20 mx-auto mb-4 object-contain">
+                     class="w-20 h-20 mx-auto mb-4 object-contain"
+                     loading="lazy">
                 <?php endif; ?>
                 
                 <!-- Title -->
@@ -266,7 +259,7 @@ include 'templates/header.php';
     <div class="container mx-auto px-4">
         <div class="text-center mb-12" data-aos="fade-up">
             <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Galeri Foto</h2>
-            <p class="text-gray-600">Dokumentasi kegiatan dan aktivitas BTIKP Kalimantan Selatan</p>
+            <p class="text-gray-600">Dokumentasi kegiatan dan aktivitas <?= htmlspecialchars($siteName) ?></p>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -278,7 +271,8 @@ include 'templates/header.php';
                 <!-- Cover Image -->
                 <img src="<?= get_album_cover($album['cover_image']) ?>" 
                      alt="<?= htmlspecialchars($album['name']) ?>"
-                     class="w-full h-64 object-cover transform group-hover:scale-110 transition-transform duration-300">
+                     class="w-full h-64 object-cover transform group-hover:scale-110 transition-transform duration-300"
+                     loading="lazy">
                 
                 <!-- Overlay -->
                 <div class="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-70 group-hover:opacity-80 transition-opacity"></div>
@@ -320,6 +314,33 @@ include 'templates/header.php';
                 Download Dokumen
             </a>
         </div>
+        
+        <!-- Contact Info -->
+        <?php 
+        $contactPhone = getSetting('contact_phone');
+        $contactEmail = getSetting('contact_email');
+        if ($contactPhone || $contactEmail): 
+        ?>
+        <div class="mt-8 flex flex-wrap justify-center gap-6 text-blue-200">
+            <?php if ($contactPhone): ?>
+            <a href="tel:<?= htmlspecialchars($contactPhone) ?>" class="flex items-center hover:text-white transition">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                </svg>
+                <?= htmlspecialchars($contactPhone) ?>
+            </a>
+            <?php endif; ?>
+            
+            <?php if ($contactEmail): ?>
+            <a href="mailto:<?= htmlspecialchars($contactEmail) ?>" class="flex items-center hover:text-white transition">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                <?= htmlspecialchars($contactEmail) ?>
+            </a>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
     </div>
 </section>
 
@@ -327,78 +348,49 @@ include 'templates/header.php';
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Hero Swiper - Banner Slider
+    <?php if (!empty($banners)): ?>
     const heroSwiper = new Swiper('.heroSwiper', {
-        // Enable looping for seamless infinite scroll
         loop: <?= count($banners) > 1 ? 'true' : 'false' ?>,
-        
-        // Autoplay settings
         autoplay: {
-            delay: 5000, // 5 seconds per slide
-            disableOnInteraction: false, // Continue autoplay after user interaction
-            pauseOnMouseEnter: true, // Pause when hovering
+            delay: 5000,
+            disableOnInteraction: false,
+            pauseOnMouseEnter: true,
         },
-        
-        // Speed of transition
         speed: 800,
-        
-        // Pagination disabled
-        // pagination: {
-        //     el: '.swiper-pagination',
-        //     clickable: true,
-        //     dynamicBullets: true,
-        // },
-        
-        // Navigation disabled
-        // navigation: {
-        //     nextEl: '.swiper-button-next',
-        //     prevEl: '.swiper-button-prev',
-        // },
-        
-        // Effect
-        effect: 'fade', // Smooth fade transition
+        effect: 'fade',
         fadeEffect: {
             crossFade: true
         },
-        
-        // Accessibility
         a11y: {
             prevSlideMessage: 'Banner sebelumnya',
             nextSlideMessage: 'Banner berikutnya',
             paginationBulletMessage: 'Pergi ke banner {{index}}'
         },
-        
-        // Keyboard control
         keyboard: {
             enabled: true,
             onlyInViewport: true,
         },
-        
-        // Touch/Swipe settings
         touchRatio: 1,
         touchAngle: 45,
         grabCursor: true,
-        
-        // Preload images
         preloadImages: true,
         lazy: {
             loadPrevNext: true,
         },
-        
-        // Callbacks for smooth animation
         on: {
             init: function() {
                 console.log('Hero banner slider initialized');
             },
             slideChange: function() {
-                // Re-trigger AOS animations on slide change
                 if (typeof AOS !== 'undefined') {
                     AOS.refresh();
                 }
             }
         }
     });
+    <?php endif; ?>
     
-    // Initialize AOS (Animate On Scroll)
+    // Initialize AOS
     if (typeof AOS !== 'undefined') {
         AOS.init({
             duration: 800,
@@ -410,7 +402,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<?php
-// Include footer
-include 'templates/footer.php';
-?>
+<?php include 'templates/footer.php'; ?>
