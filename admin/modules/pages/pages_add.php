@@ -59,7 +59,20 @@ include '../../includes/header.php';
 ?>
 <div class="page-heading">
     <div class="page-title">
-        <h3><?= $pageTitle ?></h3>
+        <div class="row align-items-center">
+            <div class="col-12 col-md-6">
+                <h3><?= $pageTitle ?></h3>
+            </div>
+            <div class="col-12 col-md-6">
+                <nav aria-label="breadcrumb" class="breadcrumb-header float-md-end">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a href="<?= ADMIN_URL ?>">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="pages_list.php">Halaman</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Tambah</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
     </div>
 
     <section class="section">
@@ -103,11 +116,16 @@ include '../../includes/header.php';
                         <input type="number" class="form-control" id="display_order" name="display_order" value="<?= (int)($_POST['display_order'] ?? 0) ?>">
                         <small class="text-muted">Urutan halaman yang akan ditampilkan (semakin kecil semakin atas)</small>
                     </div>
-                    <div class="d-flex justify-content-between">
-                        <a href="pages_list.php" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Kembali</a>
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Simpan Halaman</button>
+                    
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Simpan Halaman
+                        </button>
+                        <a href="pages_list.php" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Batal
+                        </a>
                     </div>
-                </form>
+                    </form>
             </div>
         </div>
     </section>

@@ -79,7 +79,6 @@ include '../../includes/header.php';
             </div>
 
             <div class="card-body">
-                <!-- Filter Panel -->
                 <form method="GET" class="row g-2 align-items-center mb-3">
                     <div class="col-12 col-sm-4">
                         <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Cari halaman..." class="form-control">
@@ -120,7 +119,6 @@ include '../../includes/header.php';
                     </div>
                 <?php endif; ?>
 
-                <!-- Pages Table -->
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
@@ -149,13 +147,13 @@ include '../../includes/header.php';
                                 <tr<?= $isTrashed ? ' class="table-danger text-muted"' : '' ?>>
                                     <td><?= $offset + $i + 1 ?></td>
                                     <td>
-                                        <strong><?= htmlspecialchars($p['title']) ?></strong>
+                                        <strong class="text-break"><?= htmlspecialchars($p['title']) ?></strong>
                                         <?php if ($isTrashed): ?>
                                             <span class="badge bg-secondary ms-2">Terhapus</span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <code><?= htmlspecialchars($p['slug']) ?></code>
+                                        <code class="text-break"><?= htmlspecialchars($p['slug']) ?></code>
                                     </td>
                                     <td class="text-center">
                                         <?php if ($p['status'] === 'published'): ?>
@@ -175,7 +173,7 @@ include '../../includes/header.php';
                                     </td>
                                     <td class="text-center">
                                         <?php if ($isTrashed): ?>
-                                            <span class="text-danger fw-semibold">
+                                            <span class="text-danger fw-semibold text-break">
                                                 Deleted at <?= formatTanggal($p['deleted_at'], 'd M Y H:i') ?>
                                             </span>
                                         <?php else: ?>
@@ -200,7 +198,6 @@ include '../../includes/header.php';
                     </table>
                 </div>
 
-                <!-- Pagination bawah selalu tampil -->
                 <?php if ($totalItems > 0): ?>
                     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
                         <div>

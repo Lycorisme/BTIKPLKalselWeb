@@ -1,7 +1,9 @@
 <?php
 /**
  * Activity Logs Page - Full Mazer Design
- * DI-UPDATE: Layout card statistik di layar kecil (col-4 -> col-12 col-md-4)
+ * PERBAIKAN:
+ * 1. Mengganti mb-3 pada kolom statistik dengan gy-2 pada row (mengurangi jeda mobile)
+ * 2. Menambah text-nowrap pada sel tabel (email, ip, timestamp) untuk fix overflow di mobile
  */
 require_once '../../includes/auth_check.php';
 require_once '../../../core/Database.php';
@@ -223,31 +225,22 @@ include '../../includes/header.php';
         </div>
     </div>
 
-    <!-- 
-    =======================================================================
-    PERBAIKAN:
-    class="col-md-4 col-4 mb-2" diubah menjadi "col-12 col-md-4 mb-3"
-    col-12 akan membuatnya 100% width di HP (stacking / list ke bawah)
-    col-md-4 akan membuatnya 33.3% width di Desktop (menyamping)
-    =======================================================================
-    -->
-    <!-- Statistics Cards -->
-    <section class="row mb-4">
-        <div class="col-12 col-md-4 mb-3">
+    <section class="row gy-2 mb-4">
+        <div class="col-12 col-md-4">
             <div class="card"><div class="card-body text-center">
                 <div class="stats-icon blue mb-2 mx-auto"><i class="bi bi-file-text"></i></div>
                 <h6 class="text-muted mb-1">Total Logs</h6>
                 <h6 class="mb-0"><?= formatNumber($stats['total']) ?></h6>
             </div></div>
         </div>
-        <div class="col-12 col-md-4 mb-3">
+        <div class="col-12 col-md-4">
             <div class="card"><div class="card-body text-center">
                 <div class="stats-icon green mb-2 mx-auto"><i class="bi bi-people"></i></div>
                 <h6 class="text-muted mb-1">Unique Users</h6>
                 <h6 class="mb-0"><?= formatNumber($stats['unique_users']) ?></h6>
             </div></div>
         </div>
-        <div class="col-12 col-md-4 mb-3">
+        <div class="col-12 col-md-4">
             <div class="card"><div class="card-body text-center">
                 <div class="stats-icon purple mb-2 mx-auto"><i class="bi bi-clock-history"></i></div>
                 <h6 class="text-muted mb-1">Last Activity</h6>
@@ -255,7 +248,6 @@ include '../../includes/header.php';
             </div></div>
         </div>
     </section>
-
     <section class="section">
         <div class="card shadow">
             <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -273,16 +265,12 @@ include '../../includes/header.php';
             </div>
 
             <div class="card-body">
-                <!-- Filter Panel (Standardized) -->
-                <form method="GET" class="row g-3 mb-4">
-                    <!-- Baris 1: Filter Utama -->
+                <form method="GET" class="row g-2 align-items-center mb-3">
                     <div class="col-12 col-md-3">
-                        <label class="form-label">Cari Deskripsi/User</label>
-                        <input type="text" name="search" class="form-control form-control-sm" value="<?= htmlspecialchars($search) ?>" placeholder="Cari...">
+                        <input type="text" name="search" class="form-control" value="<?= htmlspecialchars($search) ?>" placeholder="Cari deskripsi/user...">
                     </div>
                     <div class="col-12 col-md-3">
-                        <label class="form-label">User</label>
-                        <select name="user_id" class="form-select form-select-sm">
+                        <select name="user_id" class="form-select">
                             <option value="">Semua User</option>
                             <?php foreach ($users as $user): ?>
                                 <option value="<?= $user['id'] ?>"<?= $userId === (string)$user['id'] ? ' selected' : '' ?>>
@@ -292,8 +280,7 @@ include '../../includes/header.php';
                         </select>
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="form-label">Action</label>
-                        <select name="action_type" class="form-select form-select-sm">
+                        <select name="action_type" class="form-select">
                             <option value="">Semua Action</option>
                             <?php foreach ($actionTypes as $type): ?>
                                 <option value="<?= $type ?>"<?= $actionType === $type ? ' selected' : '' ?>><?= $type ?></option>
@@ -301,8 +288,7 @@ include '../../includes/header.php';
                         </select>
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="form-label">Module</label>
-                        <select name="model_type" class="form-select form-select-sm">
+                        <select name="model_type" class="form-select">
                             <option value="">Semua Module</option>
                             <?php foreach ($modelTypes as $type): ?>
                                 <option value="<?= $type ?>"<?= $modelType === $type ? ' selected' : '' ?>><?= ucfirst($type) ?></option>
@@ -310,37 +296,37 @@ include '../../includes/header.php';
                         </select>
                     </div>
 
-                    <!-- Baris 2: Tanggal & Aksi -->
-                    <div class="col-6 col-md-3">
-                        <label class="form-label">Dari Tanggal</label>
-                        <input type="date" name="date_from" class="form-control form-control-sm" value="<?= htmlspecialchars($dateFrom) ?>">
+                    <div class="col-12 col-md-3">
+                        <input type="date" name="date_from" class="form-control" value="<?= htmlspecialchars($dateFrom) ?>" placeholder="Dari Tanggal">
                     </div>
-                    <div class="col-6 col-md-3">
-                        <label class="form-label">Sampai Tanggal</label>
-                        <input type="date" name="date_to" class="form-control form-control-sm" value="<?= htmlspecialchars($dateTo) ?>">
+                    <div class="col-12 col-md-3">
+                        <input type="date" name="date_to" class="form-control" value="<?= htmlspecialchars($dateTo) ?>" placeholder="Sampai Tanggal">
                     </div>
                     <div class="col-6 col-md-2">
-                        <label class="form-label">Per Page</label>
-                        <select name="per_page" class="form-select form-select-sm">
+                        <select name="per_page" class="form-select">
                             <?php foreach ($perPageOptions as $n): ?>
                                 <option value="<?= $n ?>"<?= $itemsPerPage == $n ? ' selected' : '' ?>><?= $n ?>/hlm</option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-6 col-md-4 d-flex align-items-end gap-2">
-                        <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                    <div class="col-6 col-md-4">
+                        <button type="submit" class="btn btn-outline-primary w-100">
                             <i class="bi bi-search"></i> Filter
                         </button>
-                        <!-- Reset button logic -->
-                        <?php if ($userId || $actionType || $modelType || $dateFrom || $dateTo || $search || (isset($_GET['per_page']) && $_GET['per_page'] != getSetting('items_per_page', 25))): ?>
-                            <a href="activity_logs.php" class="btn btn-secondary btn-sm">
-                                <i class="bi bi-x-circle"></i> Reset
-                            </a>
-                        <?php endif; ?>
                     </div>
                 </form>
 
-                <!-- Logs Table -->
+                <?php 
+                $isFiltered = $userId || $actionType || $modelType || $dateFrom || $dateTo || $search || (isset($_GET['per_page']) && $_GET['per_page'] != getSetting('items_per_page', 25));
+                if ($isFiltered): 
+                ?>
+                    <div class="mb-3">
+                        <a href="activity_logs.php" class="btn btn-sm btn-secondary">
+                            <i class="bi bi-x-circle"></i> Reset
+                        </a>
+                    </div>
+                <?php endif; ?>
+
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
@@ -375,8 +361,8 @@ include '../../includes/header.php';
                                                 <?php endif; ?>
                                             </div>
                                             <div>
-                                                <div class="fw-semibold"><?= htmlspecialchars($log['user_display_name']) ?></div>
-                                                <small class="text-muted"><?= htmlspecialchars($log['user_email'] ?? '-') ?></small>
+                                                <div class="fw-semibold text-break"><?= htmlspecialchars($log['user_display_name']) ?></div>
+                                                <small class="text-muted text-nowrap"><?= htmlspecialchars($log['user_email'] ?? '-') ?></small>
                                             </div>
                                         </div>
                                     </td>
@@ -385,7 +371,7 @@ include '../../includes/header.php';
                                             <?= $log['action_type'] ?>
                                         </span>
                                     </td>
-                                    <td><?= htmlspecialchars($log['description']) ?></td>
+                                    <td class="text-break"><?= htmlspecialchars($log['description']) ?></td>
                                     <td>
                                         <?php if ($log['model_type']): ?>
                                             <span class="badge bg-secondary"><?= ucfirst($log['model_type']) ?></span>
@@ -394,9 +380,9 @@ include '../../includes/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <small class="font-monospace"><?= $log['ip_address'] ?? '-' ?></small>
+                                        <small class="font-monospace text-nowrap"><?= $log['ip_address'] ?? '-' ?></small>
                                     </td>
-                                    <td>
+                                    <td class="text-nowrap">
                                         <div><?= formatTanggalRelatif($log['created_at']) ?></div>
                                         <small class="text-muted"><?= formatTanggal($log['created_at'], 'd M Y H:i') ?></small>
                                     </td>
@@ -406,7 +392,6 @@ include '../../includes/header.php';
                     </table>
                 </div>
 
-                <!-- Pagination (Standardized) -->
                 <?php if ($total > 0): ?>
                     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
                         <div>
@@ -461,7 +446,6 @@ include '../../includes/header.php';
     </section>
 </div>
 
-<!-- Export Modal -->
 <div class="modal fade" id="exportModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -480,15 +464,13 @@ include '../../includes/header.php';
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
                 <a href="?export=csv<?= $userId ? '&user_id='.$userId : '' ?><?= $actionType ? '&action_type='.$actionType : '' ?><?= $modelType ? '&model_type='.$modelType : '' ?><?= $dateFrom ? '&date_from='.$dateFrom : '' ?><?= $dateTo ? '&date_to='.$dateTo : '' ?><?= $search ? '&search='.urlencode($search) : '' ?>" 
                    class="btn btn-success"
-                   data-confirm-export> <!-- Atribut notifikasi kustom -->
-                    <i class="bi bi-download"></i> Download CSV
+                   data-confirm-export> <i class="bi bi-download"></i> Download CSV
                 </a>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Cleanup Modal -->
 <?php if (hasRole(['super_admin'])): ?>
 <div class="modal fade" id="cleanupModal" tabindex="-1">
     <div class="modal-dialog">
@@ -529,7 +511,6 @@ include '../../includes/header.php';
 <?php endif; ?>
 
 
-<!-- Script Notifikasi Kustom (Sudah ada) -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     

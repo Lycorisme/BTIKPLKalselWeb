@@ -2,6 +2,7 @@
 /**
  * Files List - Konsisten dengan Mazer Design System
  * Full Mazer Design with Soft Delete, Pagination, Search, File Preview
+ * DIUBAH: Mengadopsi layout filter dari referensi (categories_list.php)
  */
 require_once '../../includes/auth_check.php';
 require_once '../../../core/Database.php';
@@ -75,58 +76,61 @@ include '../../includes/header.php';
     </div>
 
     <section class="section">
-        <div class="card">
-            <div class="card-header">
-                <div class="d-flex align-items-center justify-content-between">
-                    <h5 class="card-title">Daftar File Download</h5>
+        <div class="card shadow">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="card-title m-0 fw-bold">Daftar File Download</div>
+                <div>
                     <a href="files_add.php" class="btn btn-primary">
-                        <i class="bi bi-plus-circle"></i> Tambah File
+                        <i class="bi bi-plus-circle"></i>
+                        <span class="d-none d-md-inline">Tambah File</span>
                     </a>
                 </div>
             </div>
+            
             <div class="card-body">
-                <form method="GET" class="row g-3 mb-4">
+                <form method="GET" class="row g-2 align-items-center mb-3">
                     <div class="col-12 col-md-3">
-                        <label class="form-label">Cari File</label>
                         <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" 
-                               placeholder="Judul, deskripsi..." class="form-control form-control-sm">
+                               placeholder="Cari judul, deskripsi..." class="form-control">
                     </div>
                     <div class="col-6 col-md-2">
-                        <label class="form-label">Status</label>
-                        <select name="status" class="form-select form-select-sm">
+                        <select name="status" class="form-select">
                             <?php foreach ($statusOptions as $val => $label): ?>
                                 <option value="<?= $val ?>"<?= $status === $val ? ' selected' : '' ?>><?= $label ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="col-6 col-md-2">
-                        <label class="form-label">Tampilkan</label>
-                        <select name="show_deleted" class="form-select form-select-sm">
+                        <select name="show_deleted" class="form-select">
                             <?php foreach ($showDeletedOptions as $val => $label): ?>
                                 <option value="<?= $val ?>"<?= $showDeleted === $val ? ' selected' : '' ?>><?= $label ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="col-6 col-md-2">
-                        <label class="form-label">Per Page</label>
-                        <select name="per_page" class="form-select form-select-sm">
+                        <select name="per_page" class="form-select">
                             <?php foreach ($perPageOptions as $n): ?>
                                 <option value="<?= $n ?>"<?= $perPage == $n ? ' selected' : '' ?>><?= $n ?>/hlm</option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-6 col-md-3 d-flex align-items-end gap-2">
-                        <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
-                            <i class="bi bi-search"></i> Cari
+                    <div class="col-6 col-md-3">
+                        <button type="submit" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-search"></i>
+                            <span class="d-none d-md-inline">Filter</span>
                         </button>
-                        <?php if ($search || $status !== '' || $showDeleted === '1' || (isset($_GET['per_page']) && $_GET['per_page'] != getSetting('items_per_page', 10))): // Kondisi reset lebih baik ?>
-                            <a href="files_list.php" class="btn btn-secondary btn-sm">
-                                <i class="bi bi-x-circle"></i> Reset
-                            </a>
-                        <?php endif; ?>
                     </div>
                 </form>
 
+                <?php // Tombol reset dipindah ke luar form, sesuai referensi
+                $isFiltered = $search || $status !== '' || $showDeleted === '1' || (isset($_GET['per_page']) && $_GET['per_page'] != getSetting('items_per_page', 10));
+                if ($isFiltered): ?>
+                    <div class="mb-3">
+                        <a href="files_list.php" class="btn btn-sm btn-secondary">
+                            <i class="bi bi-x-circle"></i> Reset
+                        </a>
+                    </div>
+                <?php endif; ?>
                 <?php if (empty($files)): ?>
                     <div class="text-center py-5">
                         <i class="bi bi-file-earmark" style="font-size: 3rem; color: #ccc;"></i>
@@ -181,10 +185,10 @@ include '../../includes/header.php';
                                             <div class="d-flex align-items-center">
                                                 <i class="bi <?= $fileIcon ?> <?= $fileColor ?> fs-5 me-2"></i>
                                                 <div>
-                                                    <strong><?= htmlspecialchars($file['title']) ?></strong>
+                                                    <strong class="text-break"><?= htmlspecialchars($file['title']) ?></strong>
                                                     <?php if (!$isTrashed): ?>
                                                         <br>
-                                                        <a href="#" class="small text-primary file-preview-link"
+                                                        <a href="#" class="small text-primary file-preview-link text-break"
                                                            data-file-url="<?= publicFileUrl($file['file_path']) ?>"
                                                            data-file-type="<?= htmlspecialchars(strtolower($file['file_type'])) ?>"
                                                            data-bs-toggle="modal"
@@ -201,7 +205,7 @@ include '../../includes/header.php';
                                             <span class="badge bg-secondary"><?= htmlspecialchars(strtoupper($file['file_type'])) ?></span>
                                         </td>
                                         <td>
-                                            <small><?= htmlspecialchars(truncateText($file['description'] ?? '', 50)) ?></small>
+                                            <small class="text-break"><?= htmlspecialchars(truncateText($file['description'] ?? '', 50)) ?></small>
                                         </td>
                                         <td class="text-center">
                                             <span class="badge bg-info"><?= formatNumber($file['download_count'] ?? 0) ?></span>
@@ -273,10 +277,10 @@ include '../../includes/header.php';
                             <div class="card mb-3">
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <div class="d-flex align-items-center flex-grow-1">
+                                        <div class="d-flex align-items-center flex-grow-1" style="min-width: 0;">
                                             <i class="bi <?= $fileIcon ?> <?= $fileColor ?> fs-4 me-2"></i>
-                                            <div class="flex-grow-1">
-                                                <strong><?= htmlspecialchars($file['title']) ?></strong>
+                                            <div class="flex-grow-1" style="min-width: 0;">
+                                                <strong class="text-break"><?= htmlspecialchars($file['title']) ?></strong>
                                                 <div class="small text-muted"><?= formatFileSize($file['file_size'] ?? 0) ?> · <?= htmlspecialchars(strtoupper($file['file_type'])) ?></div>
                                             </div>
                                         </div>
@@ -292,7 +296,7 @@ include '../../includes/header.php';
 
                                     <?php if ($file['description']): ?>
                                         <div class="mb-2">
-                                            <small class="text-muted"><?= htmlspecialchars(truncateText($file['description'], 60)) ?></small>
+                                            <small class="text-muted text-break"><?= htmlspecialchars(truncateText($file['description'], 60)) ?></small>
                                         </div>
                                     <?php endif; ?>
 
@@ -374,7 +378,6 @@ include '../../includes/header.php';
                                     if ($to < $totalPages - 1) {
                                         echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
                                     }
-                                    // ================== INI ADALAH BARIS 385 YANG DIPERBAIKI ==================
                                     echo '<li class="page-item"><a class="page-link" href="?'.http_build_query(array_merge($_GET, ['page' => $totalPages])).'">'.$totalPages.'</a></li>';
                                 }
                                 ?>
@@ -391,8 +394,10 @@ include '../../includes/header.php';
                     </div>
                 <?php endif; ?>
                 
-            </div> </div> </section>
-</div>
+            </div>
+        </div>
+    </section>
+    </div>
 
 <div class="modal fade" id="filePreviewModal" tabindex="-1" aria-labelledby="filePreviewModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered">

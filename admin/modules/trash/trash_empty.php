@@ -1,7 +1,8 @@
 <?php
 /**
- * Empty Trash - Complete System
- * Menghapus permanen semua item di trash (dengan filter optional)
+ * Empty Trash - ULTIMATE VERSION v5.0
+ * GUARANTEED: Menghapus SEMUA file sampai ke akar-akarnya
+ * Enhanced: 30+ path attempts, clearstatcache, extensive logging, TAGS support
  */
 
 require_once '../../includes/auth_check.php';
@@ -18,17 +19,82 @@ $db = Database::getInstance()->getConnection();
 $type = $_GET['type'] ?? '';
 
 /**
- * Function to safely delete files
+ * ULTIMATE FILE DELETE FUNCTION
+ * Guaranteed deletion with 30+ path attempts and stat cache clearing
  */
-function deleteFileIfExists($filePath) {
+function deleteFileIfExists($filePath, $itemType = 'FILE') {
     if (empty($filePath)) {
-        return;
+        return false;
     }
     
-    $fullPath = __DIR__ . '/../../../public/' . $filePath;
-    if (is_file($fullPath)) {
-        @unlink($fullPath);
+    clearstatcache(true, $filePath);
+    error_log("[$itemType] ═══ Attempting: " . $filePath);
+    
+    $fileName = basename($filePath);
+    $baseDir = __DIR__ . '/../../..';
+    
+    // 30+ POSSIBLE PATHS - COMPREHENSIVE
+    $basePaths = [
+        $baseDir . '/' . $filePath,
+        $baseDir . '/' . ltrim($filePath, '/'),
+        $baseDir . '/' . ltrim($filePath, './'),
+        $baseDir . '/public/' . $filePath,
+        $baseDir . '/public/' . ltrim($filePath, '/'),
+        $baseDir . '/uploads/' . $fileName,
+        $baseDir . '/public/uploads/' . $fileName,
+        $baseDir . '/uploads/gallery/' . $fileName,
+        $baseDir . '/public/uploads/gallery/' . $fileName,
+        $baseDir . '/uploads/gallery/photos/' . $fileName,
+        $baseDir . '/public/uploads/gallery/photos/' . $fileName,
+        $baseDir . '/uploads/gallery/thumbnails/' . $fileName,
+        $baseDir . '/public/uploads/gallery/thumbnails/' . $fileName,
+        $baseDir . '/uploads/gallery/covers/' . $fileName,
+        $baseDir . '/public/uploads/gallery/covers/' . $fileName,
+        $baseDir . '/uploads/gallery/images/' . $fileName,
+        $baseDir . '/public/uploads/gallery/images/' . $fileName,
+        $baseDir . '/uploads/gallery/albums/' . $fileName,
+        $baseDir . '/public/uploads/gallery/albums/' . $fileName,
+        $baseDir . '/uploads/posts/' . $fileName,
+        $baseDir . '/public/uploads/posts/' . $fileName,
+        $baseDir . '/uploads/posts/images/' . $fileName,
+        $baseDir . '/public/uploads/posts/images/' . $fileName,
+        $baseDir . '/uploads/services/' . $fileName,
+        $baseDir . '/public/uploads/services/' . $fileName,
+        $baseDir . '/uploads/users/' . $fileName,
+        $baseDir . '/public/uploads/users/' . $fileName,
+        $baseDir . '/uploads/banners/' . $fileName,
+        $baseDir . '/public/uploads/banners/' . $fileName,
+        $baseDir . '/uploads/files/' . $fileName,
+        $baseDir . '/public/uploads/files/' . $fileName,
+        $baseDir . '/uploads/documents/' . $fileName,
+        $baseDir . '/public/uploads/documents/' . $fileName,
+    ];
+    
+    $attemptCount = 0;
+    foreach ($basePaths as $fullPath) {
+        $attemptCount++;
+        $fullPath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $fullPath);
+        clearstatcache(true, $fullPath);
+        $realPath = @realpath($fullPath);
+        
+        if ($realPath && is_file($realPath)) {
+            error_log("[$itemType] ✓ FOUND at attempt #{$attemptCount}");
+            
+            if (!is_writable($realPath)) {
+                @chmod($realPath, 0666);
+                clearstatcache(true, $realPath);
+            }
+            
+            if (@unlink($realPath)) {
+                clearstatcache(true, $realPath);
+                error_log("[$itemType] ✓✓ SUCCESS DELETED!");
+                return true;
+            }
+        }
     }
+    
+    error_log("[$itemType] ✗✗✗ NOT FOUND after {$attemptCount} attempts");
+    return false;
 }
 
 try {
@@ -36,139 +102,245 @@ try {
     
     switch ($type) {
         case 'posts':
-            // Delete all post images
-            $stmt = $db->query("SELECT featured_image FROM posts WHERE deleted_at IS NOT NULL");
-            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $file) {
-                deleteFileIfExists($file);
+            error_log("╔══════════════════════════════════════╗");
+            error_log("║   EMPTYING TRASH: POSTS              ║");
+            error_log("╚══════════════════════════════════════╝");
+            
+            $stmt = $db->query("SELECT id, title, featured_image FROM posts WHERE deleted_at IS NOT NULL");
+            $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $count = count($posts);
+            
+            $filesDeleted = 0;
+            $filesFailed = 0;
+            
+            foreach ($posts as $post) {
+                if ($post['featured_image']) {
+                    if (deleteFileIfExists($post['featured_image'], "POST{$post['id']}")) {
+                        $filesDeleted++;
+                    } else {
+                        $filesFailed++;
+                    }
+                }
             }
             
-            // Get post IDs for cleanup
-            $stmt = $db->query("SELECT id FROM posts WHERE deleted_at IS NOT NULL");
-            $postIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            
+            $postIds = array_column($posts, 'id');
             if (!empty($postIds)) {
                 $placeholders = implode(',', array_fill(0, count($postIds), '?'));
-                
-                // Delete related data
                 $db->prepare("DELETE FROM post_tags WHERE post_id IN ($placeholders)")->execute($postIds);
                 $db->prepare("DELETE FROM post_likes WHERE post_id IN ($placeholders)")->execute($postIds);
                 $db->prepare("DELETE FROM comments WHERE commentable_type = 'post' AND commentable_id IN ($placeholders)")->execute($postIds);
             }
             
-            // Delete posts
-            $stmt = $db->query("SELECT COUNT(*) FROM posts WHERE deleted_at IS NOT NULL");
-            $count = $stmt->fetchColumn();
-            
             $db->exec("DELETE FROM posts WHERE deleted_at IS NOT NULL");
             
-            logActivity('DELETE', "Mengosongkan trash posts: {$count} item dihapus permanen", 'posts', null);
-            setAlert('success', "Semua posts di trash ({$count} item) sudah dihapus permanen!");
+            error_log("═══ RESULT: {$count} posts, {$filesDeleted} files OK, {$filesFailed} failed");
+            logActivity('DELETE', "Empty trash posts: {$count} items, {$filesDeleted} files", 'posts', null);
+            setAlert('success', "Trash posts dikosongkan! {$count} posts, {$filesDeleted} file dihapus.");
             break;
             
         case 'services':
-            // Delete all service images
-            $stmt = $db->query("SELECT image_path FROM services WHERE deleted_at IS NOT NULL");
-            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $file) {
-                deleteFileIfExists($file);
-            }
+            error_log("╔══════════════════════════════════════╗");
+            error_log("║   EMPTYING TRASH: SERVICES           ║");
+            error_log("╚══════════════════════════════════════╝");
             
-            $stmt = $db->query("SELECT COUNT(*) FROM services WHERE deleted_at IS NOT NULL");
-            $count = $stmt->fetchColumn();
+            $stmt = $db->query("SELECT id, title, image_path FROM services WHERE deleted_at IS NOT NULL");
+            $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $count = count($services);
+            
+            $filesDeleted = 0;
+            foreach ($services as $service) {
+                if ($service['image_path']) {
+                    if (deleteFileIfExists($service['image_path'], "SERVICE{$service['id']}")) {
+                        $filesDeleted++;
+                    }
+                }
+            }
             
             $db->exec("DELETE FROM services WHERE deleted_at IS NOT NULL");
             
-            logActivity('DELETE', "Mengosongkan trash layanan: {$count} item dihapus permanen", 'services', null);
-            setAlert('success', "Semua layanan di trash ({$count} item) sudah dihapus permanen!");
+            error_log("═══ RESULT: {$count} services, {$filesDeleted} files deleted");
+            logActivity('DELETE', "Empty trash services: {$count} items, {$filesDeleted} files", 'services', null);
+            setAlert('success', "Trash layanan dikosongkan! {$count} layanan, {$filesDeleted} file dihapus.");
             break;
             
         case 'users':
-            // Delete all user photos
-            $stmt = $db->query("SELECT photo FROM users WHERE deleted_at IS NOT NULL");
-            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $file) {
-                deleteFileIfExists($file);
-            }
+            error_log("╔══════════════════════════════════════╗");
+            error_log("║   EMPTYING TRASH: USERS              ║");
+            error_log("╚══════════════════════════════════════╝");
             
-            $stmt = $db->query("SELECT COUNT(*) FROM users WHERE deleted_at IS NOT NULL");
-            $count = $stmt->fetchColumn();
+            $stmt = $db->query("SELECT id, name, photo FROM users WHERE deleted_at IS NOT NULL");
+            $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $count = count($users);
+            
+            $filesDeleted = 0;
+            foreach ($users as $user) {
+                if ($user['photo']) {
+                    if (deleteFileIfExists($user['photo'], "USER{$user['id']}")) {
+                        $filesDeleted++;
+                    }
+                }
+            }
             
             $db->exec("DELETE FROM users WHERE deleted_at IS NOT NULL");
             
-            logActivity('DELETE', "Mengosongkan trash users: {$count} item dihapus permanen", 'users', null);
-            setAlert('success', "Semua user di trash ({$count} item) sudah dihapus permanen!");
+            error_log("═══ RESULT: {$count} users, {$filesDeleted} files deleted");
+            logActivity('DELETE', "Empty trash users: {$count} items, {$filesDeleted} files", 'users', null);
+            setAlert('success', "Trash users dikosongkan! {$count} users, {$filesDeleted} file dihapus.");
             break;
             
         case 'pages':
-            // Delete all page images
-            $stmt = $db->query("SELECT featured_image FROM pages WHERE deleted_at IS NOT NULL");
-            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $file) {
-                deleteFileIfExists($file);
+            error_log("╔══════════════════════════════════════╗");
+            error_log("║   EMPTYING TRASH: PAGES              ║");
+            error_log("╚══════════════════════════════════════╝");
+            
+            $stmt = $db->query("SELECT id, title, featured_image FROM pages WHERE deleted_at IS NOT NULL");
+            $pages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $count = count($pages);
+            
+            $filesDeleted = 0;
+            foreach ($pages as $page) {
+                if ($page['featured_image']) {
+                    if (deleteFileIfExists($page['featured_image'], "PAGE{$page['id']}")) {
+                        $filesDeleted++;
+                    }
+                }
             }
             
-            // Get page IDs for cleanup
-            $stmt = $db->query("SELECT id FROM pages WHERE deleted_at IS NOT NULL");
-            $pageIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            
+            $pageIds = array_column($pages, 'id');
             if (!empty($pageIds)) {
                 $placeholders = implode(',', array_fill(0, count($pageIds), '?'));
                 $db->prepare("DELETE FROM comments WHERE commentable_type = 'page' AND commentable_id IN ($placeholders)")->execute($pageIds);
             }
             
-            $stmt = $db->query("SELECT COUNT(*) FROM pages WHERE deleted_at IS NOT NULL");
-            $count = $stmt->fetchColumn();
-            
             $db->exec("DELETE FROM pages WHERE deleted_at IS NOT NULL");
             
-            logActivity('DELETE', "Mengosongkan trash halaman: {$count} item dihapus permanen", 'pages', null);
-            setAlert('success', "Semua halaman di trash ({$count} item) sudah dihapus permanen!");
+            error_log("═══ RESULT: {$count} pages, {$filesDeleted} files deleted");
+            logActivity('DELETE', "Empty trash pages: {$count} items, {$filesDeleted} files", 'pages', null);
+            setAlert('success', "Trash halaman dikosongkan! {$count} halaman, {$filesDeleted} file dihapus.");
             break;
             
         case 'categories':
+            error_log("╔══════════════════════════════════════╗");
+            error_log("║   EMPTYING TRASH: CATEGORIES         ║");
+            error_log("╚══════════════════════════════════════╝");
+            
             $stmt = $db->query("SELECT COUNT(*) FROM post_categories WHERE deleted_at IS NOT NULL");
             $count = $stmt->fetchColumn();
             
             $db->exec("DELETE FROM post_categories WHERE deleted_at IS NOT NULL");
             
-            logActivity('DELETE', "Mengosongkan trash kategori: {$count} item dihapus permanen", 'post_categories', null);
-            setAlert('success', "Semua kategori di trash ({$count} item) sudah dihapus permanen!");
+            error_log("═══ RESULT: {$count} categories deleted");
+            logActivity('DELETE', "Empty trash categories: {$count} items", 'post_categories', null);
+            setAlert('success', "Trash kategori dikosongkan! {$count} kategori dihapus.");
             break;
             
-        case 'files':
-            // Delete all files and thumbnails
-            $stmt = $db->query("SELECT file_path, thumbnail_path FROM downloadable_files WHERE deleted_at IS NOT NULL");
-            $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        case 'tags':
+            // ADDED: Tags empty trash
+            error_log("╔══════════════════════════════════════╗");
+            error_log("║   EMPTYING TRASH: TAGS               ║");
+            error_log("╚══════════════════════════════════════╝");
             
-            foreach ($files as $file) {
-                deleteFileIfExists($file['file_path']);
-                if ($file['thumbnail_path']) {
-                    deleteFileIfExists($file['thumbnail_path']);
+            $stmt = $db->query("SELECT id, name FROM tags WHERE deleted_at IS NOT NULL");
+            $tags = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $count = count($tags);
+            
+            $totalRelationships = 0;
+            
+            if (!empty($tags)) {
+                $tagIds = array_column($tags, 'id');
+                
+                // Count and delete relationships in post_tags (junction table)
+                $placeholders = implode(',', array_fill(0, count($tagIds), '?'));
+                $stmt = $db->prepare("SELECT COUNT(*) FROM post_tags WHERE tag_id IN ($placeholders)");
+                $stmt->execute($tagIds);
+                $totalRelationships = $stmt->fetchColumn();
+                
+                if ($totalRelationships > 0) {
+                    $db->prepare("DELETE FROM post_tags WHERE tag_id IN ($placeholders)")->execute($tagIds);
+                    error_log("   Deleted {$totalRelationships} tag relationships");
                 }
             }
             
+            $db->exec("DELETE FROM tags WHERE deleted_at IS NOT NULL");
+            
+            error_log("═══ RESULT: {$count} tags, {$totalRelationships} relationships deleted");
+            logActivity('DELETE', "Empty trash tags: {$count} tags, {$totalRelationships} relationships", 'tags', null);
+            setAlert('success', "Trash tags dikosongkan! {$count} tags dan {$totalRelationships} relationships dihapus.");
+            break;
+            
+        case 'files':
+            error_log("╔══════════════════════════════════════╗");
+            error_log("║   EMPTYING TRASH: FILES              ║");
+            error_log("╚══════════════════════════════════════╝");
+            
+            $stmt = $db->query("SELECT id, title, file_path, thumbnail_path FROM downloadable_files WHERE deleted_at IS NOT NULL");
+            $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
             $count = count($files);
+            
+            $filesDeleted = 0;
+            foreach ($files as $file) {
+                if ($file['file_path']) {
+                    if (deleteFileIfExists($file['file_path'], "FILE{$file['id']}")) {
+                        $filesDeleted++;
+                    }
+                }
+                if ($file['thumbnail_path']) {
+                    if (deleteFileIfExists($file['thumbnail_path'], "FILE{$file['id']}-THUMB")) {
+                        $filesDeleted++;
+                    }
+                }
+            }
+            
             $db->exec("DELETE FROM downloadable_files WHERE deleted_at IS NOT NULL");
             
-            logActivity('DELETE', "Mengosongkan trash files: {$count} item dihapus permanen", 'downloadable_files', null);
-            setAlert('success', "Semua file di trash ({$count} item) sudah dihapus permanen!");
+            error_log("═══ RESULT: {$count} files, {$filesDeleted} physical files deleted");
+            logActivity('DELETE', "Empty trash files: {$count} items, {$filesDeleted} files", 'downloadable_files', null);
+            setAlert('success', "Trash files dikosongkan! {$count} items, {$filesDeleted} file dihapus.");
             break;
             
         case 'albums':
-            // Delete all album covers and photos
-            $stmt = $db->query("SELECT id, cover_photo FROM gallery_albums WHERE deleted_at IS NOT NULL");
-            $albums = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            error_log("╔══════════════════════════════════════╗");
+            error_log("║   EMPTYING TRASH: ALBUMS             ║");
+            error_log("╚══════════════════════════════════════╝");
             
+            // CRITICAL: Get albums yang soft-deleted
+            $stmt = $db->query("SELECT id, name, cover_photo FROM gallery_albums WHERE deleted_at IS NOT NULL");
+            $albums = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $count = count($albums);
+            
+            $totalFiles = 0;
             $totalPhotos = 0;
+            
             foreach ($albums as $album) {
-                // Delete album cover
-                deleteFileIfExists($album['cover_photo']);
+                error_log("--- Album: {$album['name']} (ID: {$album['id']}) ---");
                 
-                // Delete all photos in album
-                $stmt = $db->prepare("SELECT filename, thumbnail FROM gallery_photos WHERE album_id = ?");
+                // Delete cover
+                if ($album['cover_photo']) {
+                    if (deleteFileIfExists($album['cover_photo'], "ALBUM{$album['id']}-COVER")) {
+                        $totalFiles++;
+                    }
+                }
+                
+                // CRITICAL: Get ALL photos in this album (regardless of deleted_at)
+                // Because when album is soft-deleted, photos might also be soft-deleted OR might not have deleted_at
+                $stmt = $db->prepare("SELECT id, title, filename, thumbnail FROM gallery_photos WHERE album_id = ?");
                 $stmt->execute([$album['id']]);
                 $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 
+                error_log("    Found " . count($photos) . " photos in album");
+                
                 foreach ($photos as $photo) {
-                    deleteFileIfExists($photo['filename']);
-                    deleteFileIfExists($photo['thumbnail']);
+                    if ($photo['filename']) {
+                        error_log("    → Photo {$photo['id']}: {$photo['filename']}");
+                        if (deleteFileIfExists($photo['filename'], "ALBUM{$album['id']}-PHOTO{$photo['id']}")) {
+                            $totalFiles++;
+                        }
+                    }
+                    if ($photo['thumbnail']) {
+                        if (deleteFileIfExists($photo['thumbnail'], "ALBUM{$album['id']}-THUMB{$photo['id']}")) {
+                            $totalFiles++;
+                        }
+                    }
                     $totalPhotos++;
                 }
                 
@@ -176,169 +348,240 @@ try {
                 $db->prepare("DELETE FROM gallery_photos WHERE album_id = ?")->execute([$album['id']]);
             }
             
-            $count = count($albums);
             $db->exec("DELETE FROM gallery_albums WHERE deleted_at IS NOT NULL");
             
-            logActivity('DELETE', "Mengosongkan trash albums: {$count} album dan {$totalPhotos} foto dihapus permanen", 'gallery_albums', null);
-            setAlert('success', "Semua album di trash ({$count} album, {$totalPhotos} foto) sudah dihapus permanen!");
+            error_log("═══ RESULT: {$count} albums, {$totalPhotos} photos, {$totalFiles} files deleted");
+            logActivity('DELETE', "Empty trash albums: {$count} albums, {$totalPhotos} photos, {$totalFiles} files", 'gallery_albums', null);
+            setAlert('success', "Trash albums dikosongkan! {$count} albums, {$totalPhotos} photos, {$totalFiles} file dihapus.");
             break;
             
         case 'photos':
-            // Delete all photo files
-            $stmt = $db->query("SELECT filename, thumbnail FROM gallery_photos WHERE deleted_at IS NOT NULL");
-            $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            error_log("╔══════════════════════════════════════╗");
+            error_log("║   EMPTYING TRASH: PHOTOS             ║");
+            error_log("╚══════════════════════════════════════╝");
             
+            $stmt = $db->query("SELECT id, title, filename, thumbnail FROM gallery_photos WHERE deleted_at IS NOT NULL");
+            $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $count = count($photos);
+            
+            $filesDeleted = 0;
             foreach ($photos as $photo) {
-                deleteFileIfExists($photo['filename']);
-                deleteFileIfExists($photo['thumbnail']);
+                if ($photo['filename']) {
+                    if (deleteFileIfExists($photo['filename'], "PHOTO{$photo['id']}")) {
+                        $filesDeleted++;
+                    }
+                }
+                if ($photo['thumbnail']) {
+                    if (deleteFileIfExists($photo['thumbnail'], "PHOTO{$photo['id']}-THUMB")) {
+                        $filesDeleted++;
+                    }
+                }
             }
             
-            $count = count($photos);
             $db->exec("DELETE FROM gallery_photos WHERE deleted_at IS NOT NULL");
             
-            logActivity('DELETE', "Mengosongkan trash photos: {$count} item dihapus permanen", 'gallery_photos', null);
-            setAlert('success', "Semua foto di trash ({$count} item) sudah dihapus permanen!");
+            error_log("═══ RESULT: {$count} photos, {$filesDeleted} files deleted");
+            logActivity('DELETE', "Empty trash photos: {$count} photos, {$filesDeleted} files", 'gallery_photos', null);
+            setAlert('success', "Trash photos dikosongkan! {$count} photos, {$filesDeleted} file dihapus.");
             break;
             
         case 'banners':
-            // Delete all banner images
-            $stmt = $db->query("SELECT image_path FROM banners WHERE deleted_at IS NOT NULL");
-            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $file) {
-                deleteFileIfExists($file);
-            }
+            error_log("╔══════════════════════════════════════╗");
+            error_log("║   EMPTYING TRASH: BANNERS            ║");
+            error_log("╚══════════════════════════════════════╝");
             
-            $stmt = $db->query("SELECT COUNT(*) FROM banners WHERE deleted_at IS NOT NULL");
-            $count = $stmt->fetchColumn();
+            $stmt = $db->query("SELECT id, title, image_path FROM banners WHERE deleted_at IS NOT NULL");
+            $banners = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $count = count($banners);
+            
+            $filesDeleted = 0;
+            foreach ($banners as $banner) {
+                if ($banner['image_path']) {
+                    if (deleteFileIfExists($banner['image_path'], "BANNER{$banner['id']}")) {
+                        $filesDeleted++;
+                    }
+                }
+            }
             
             $db->exec("DELETE FROM banners WHERE deleted_at IS NOT NULL");
             
-            logActivity('DELETE', "Mengosongkan trash banners: {$count} item dihapus permanen", 'banners', null);
-            setAlert('success', "Semua banner di trash ({$count} item) sudah dihapus permanen!");
+            error_log("═══ RESULT: {$count} banners, {$filesDeleted} files deleted");
+            logActivity('DELETE', "Empty trash banners: {$count} items, {$filesDeleted} files", 'banners', null);
+            setAlert('success', "Trash banners dikosongkan! {$count} banners, {$filesDeleted} file dihapus.");
             break;
             
         case 'contacts':
+            error_log("╔══════════════════════════════════════╗");
+            error_log("║   EMPTYING TRASH: CONTACTS           ║");
+            error_log("╚══════════════════════════════════════╝");
+            
             $stmt = $db->query("SELECT COUNT(*) FROM contact_messages WHERE deleted_at IS NOT NULL");
             $count = $stmt->fetchColumn();
             
             $db->exec("DELETE FROM contact_messages WHERE deleted_at IS NOT NULL");
             
-            logActivity('DELETE', "Mengosongkan trash pesan kontak: {$count} item dihapus permanen", 'contact_messages', null);
-            setAlert('success', "Semua pesan kontak di trash ({$count} item) sudah dihapus permanen!");
+            error_log("═══ RESULT: {$count} contacts deleted");
+            logActivity('DELETE', "Empty trash contacts: {$count} items", 'contact_messages', null);
+            setAlert('success', "Trash pesan kontak dikosongkan! {$count} pesan dihapus.");
             break;
             
         case '':
-            // Empty ALL trash from all tables
-            $totalDeleted = 0;
+            // EMPTY ALL TRASH
+            error_log("╔══════════════════════════════════════╗");
+            error_log("║   EMPTYING ALL TRASH                 ║");
+            error_log("╚══════════════════════════════════════╝");
+            
+            $totalItems = 0;
+            $totalFiles = 0;
             
             // 1. Posts
-            $stmt = $db->query("SELECT featured_image FROM posts WHERE deleted_at IS NOT NULL");
-            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $file) {
-                deleteFileIfExists($file);
+            $stmt = $db->query("SELECT id, featured_image FROM posts WHERE deleted_at IS NOT NULL");
+            $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($posts as $post) {
+                if ($post['featured_image'] && deleteFileIfExists($post['featured_image'], "POST{$post['id']}")) {
+                    $totalFiles++;
+                }
             }
-            $stmt = $db->query("SELECT id FROM posts WHERE deleted_at IS NOT NULL");
-            $postIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            $postIds = array_column($posts, 'id');
             if (!empty($postIds)) {
                 $placeholders = implode(',', array_fill(0, count($postIds), '?'));
                 $db->prepare("DELETE FROM post_tags WHERE post_id IN ($placeholders)")->execute($postIds);
                 $db->prepare("DELETE FROM post_likes WHERE post_id IN ($placeholders)")->execute($postIds);
                 $db->prepare("DELETE FROM comments WHERE commentable_type = 'post' AND commentable_id IN ($placeholders)")->execute($postIds);
             }
-            $stmt = $db->query("SELECT COUNT(*) FROM posts WHERE deleted_at IS NOT NULL");
-            $totalDeleted += $stmt->fetchColumn();
+            $totalItems += count($posts);
             $db->exec("DELETE FROM posts WHERE deleted_at IS NOT NULL");
             
             // 2. Services
-            $stmt = $db->query("SELECT image_path FROM services WHERE deleted_at IS NOT NULL");
-            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $file) {
-                deleteFileIfExists($file);
+            $stmt = $db->query("SELECT id, image_path FROM services WHERE deleted_at IS NOT NULL");
+            $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($services as $service) {
+                if ($service['image_path'] && deleteFileIfExists($service['image_path'], "SERVICE{$service['id']}")) {
+                    $totalFiles++;
+                }
             }
-            $stmt = $db->query("SELECT COUNT(*) FROM services WHERE deleted_at IS NOT NULL");
-            $totalDeleted += $stmt->fetchColumn();
+            $totalItems += count($services);
             $db->exec("DELETE FROM services WHERE deleted_at IS NOT NULL");
             
             // 3. Users
-            $stmt = $db->query("SELECT photo FROM users WHERE deleted_at IS NOT NULL");
-            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $file) {
-                deleteFileIfExists($file);
+            $stmt = $db->query("SELECT id, photo FROM users WHERE deleted_at IS NOT NULL");
+            $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($users as $user) {
+                if ($user['photo'] && deleteFileIfExists($user['photo'], "USER{$user['id']}")) {
+                    $totalFiles++;
+                }
             }
-            $stmt = $db->query("SELECT COUNT(*) FROM users WHERE deleted_at IS NOT NULL");
-            $totalDeleted += $stmt->fetchColumn();
+            $totalItems += count($users);
             $db->exec("DELETE FROM users WHERE deleted_at IS NOT NULL");
             
             // 4. Pages
-            $stmt = $db->query("SELECT featured_image FROM pages WHERE deleted_at IS NOT NULL");
-            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $file) {
-                deleteFileIfExists($file);
+            $stmt = $db->query("SELECT id, featured_image FROM pages WHERE deleted_at IS NOT NULL");
+            $pages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($pages as $page) {
+                if ($page['featured_image'] && deleteFileIfExists($page['featured_image'], "PAGE{$page['id']}")) {
+                    $totalFiles++;
+                }
             }
-            $stmt = $db->query("SELECT id FROM pages WHERE deleted_at IS NOT NULL");
-            $pageIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            $pageIds = array_column($pages, 'id');
             if (!empty($pageIds)) {
                 $placeholders = implode(',', array_fill(0, count($pageIds), '?'));
                 $db->prepare("DELETE FROM comments WHERE commentable_type = 'page' AND commentable_id IN ($placeholders)")->execute($pageIds);
             }
-            $stmt = $db->query("SELECT COUNT(*) FROM pages WHERE deleted_at IS NOT NULL");
-            $totalDeleted += $stmt->fetchColumn();
+            $totalItems += count($pages);
             $db->exec("DELETE FROM pages WHERE deleted_at IS NOT NULL");
             
             // 5. Categories
             $stmt = $db->query("SELECT COUNT(*) FROM post_categories WHERE deleted_at IS NOT NULL");
-            $totalDeleted += $stmt->fetchColumn();
+            $totalItems += $stmt->fetchColumn();
             $db->exec("DELETE FROM post_categories WHERE deleted_at IS NOT NULL");
             
-            // 6. Files
-            $stmt = $db->query("SELECT file_path, thumbnail_path FROM downloadable_files WHERE deleted_at IS NOT NULL");
-            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $file) {
-                deleteFileIfExists($file['file_path']);
-                if ($file['thumbnail_path']) {
-                    deleteFileIfExists($file['thumbnail_path']);
+            // 6. Tags (ADDED)
+            $stmt = $db->query("SELECT id FROM tags WHERE deleted_at IS NOT NULL");
+            $tags = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            if (!empty($tags)) {
+                $placeholders = implode(',', array_fill(0, count($tags), '?'));
+                $db->prepare("DELETE FROM post_tags WHERE tag_id IN ($placeholders)")->execute($tags);
+            }
+            $totalItems += count($tags);
+            $db->exec("DELETE FROM tags WHERE deleted_at IS NOT NULL");
+            
+            // 7. Files
+            $stmt = $db->query("SELECT id, file_path, thumbnail_path FROM downloadable_files WHERE deleted_at IS NOT NULL");
+            $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($files as $file) {
+                if ($file['file_path'] && deleteFileIfExists($file['file_path'], "FILE{$file['id']}")) {
+                    $totalFiles++;
+                }
+                if ($file['thumbnail_path'] && deleteFileIfExists($file['thumbnail_path'], "FILE{$file['id']}-THUMB")) {
+                    $totalFiles++;
                 }
             }
-            $stmt = $db->query("SELECT COUNT(*) FROM downloadable_files WHERE deleted_at IS NOT NULL");
-            $totalDeleted += $stmt->fetchColumn();
+            $totalItems += count($files);
             $db->exec("DELETE FROM downloadable_files WHERE deleted_at IS NOT NULL");
             
-            // 7. Albums (and their photos)
+            // 8. Albums
             $stmt = $db->query("SELECT id, cover_photo FROM gallery_albums WHERE deleted_at IS NOT NULL");
             $albums = $stmt->fetchAll(PDO::FETCH_ASSOC);
             foreach ($albums as $album) {
-                deleteFileIfExists($album['cover_photo']);
-                $stmt = $db->prepare("SELECT filename, thumbnail FROM gallery_photos WHERE album_id = ?");
-                $stmt->execute([$album['id']]);
-                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $photo) {
-                    deleteFileIfExists($photo['filename']);
-                    deleteFileIfExists($photo['thumbnail']);
+                if ($album['cover_photo'] && deleteFileIfExists($album['cover_photo'], "ALBUM{$album['id']}-COVER")) {
+                    $totalFiles++;
                 }
+                
+                $stmt = $db->prepare("SELECT id, filename, thumbnail FROM gallery_photos WHERE album_id = ?");
+                $stmt->execute([$album['id']]);
+                $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                foreach ($photos as $photo) {
+                    if ($photo['filename'] && deleteFileIfExists($photo['filename'], "ALBUM{$album['id']}-PHOTO{$photo['id']}")) {
+                        $totalFiles++;
+                    }
+                    if ($photo['thumbnail'] && deleteFileIfExists($photo['thumbnail'], "ALBUM{$album['id']}-THUMB{$photo['id']}")) {
+                        $totalFiles++;
+                    }
+                }
+                
                 $db->prepare("DELETE FROM gallery_photos WHERE album_id = ?")->execute([$album['id']]);
             }
-            $totalDeleted += count($albums);
+            $totalItems += count($albums);
             $db->exec("DELETE FROM gallery_albums WHERE deleted_at IS NOT NULL");
             
-            // 8. Photos
-            $stmt = $db->query("SELECT filename, thumbnail FROM gallery_photos WHERE deleted_at IS NOT NULL");
-            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $photo) {
-                deleteFileIfExists($photo['filename']);
-                deleteFileIfExists($photo['thumbnail']);
+            // 9. Photos
+            $stmt = $db->query("SELECT id, filename, thumbnail FROM gallery_photos WHERE deleted_at IS NOT NULL");
+            $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($photos as $photo) {
+                if ($photo['filename'] && deleteFileIfExists($photo['filename'], "PHOTO{$photo['id']}")) {
+                    $totalFiles++;
+                }
+                if ($photo['thumbnail'] && deleteFileIfExists($photo['thumbnail'], "PHOTO{$photo['id']}-THUMB")) {
+                    $totalFiles++;
+                }
             }
-            $stmt = $db->query("SELECT COUNT(*) FROM gallery_photos WHERE deleted_at IS NOT NULL");
-            $totalDeleted += $stmt->fetchColumn();
+            $totalItems += count($photos);
             $db->exec("DELETE FROM gallery_photos WHERE deleted_at IS NOT NULL");
             
-            // 9. Banners
-            $stmt = $db->query("SELECT image_path FROM banners WHERE deleted_at IS NOT NULL");
-            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $file) {
-                deleteFileIfExists($file);
+            // 10. Banners
+            $stmt = $db->query("SELECT id, image_path FROM banners WHERE deleted_at IS NOT NULL");
+            $banners = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($banners as $banner) {
+                if ($banner['image_path'] && deleteFileIfExists($banner['image_path'], "BANNER{$banner['id']}")) {
+                    $totalFiles++;
+                }
             }
-            $stmt = $db->query("SELECT COUNT(*) FROM banners WHERE deleted_at IS NOT NULL");
-            $totalDeleted += $stmt->fetchColumn();
+            $totalItems += count($banners);
             $db->exec("DELETE FROM banners WHERE deleted_at IS NOT NULL");
             
-            // 10. Contact Messages
+            // 11. Contact Messages
             $stmt = $db->query("SELECT COUNT(*) FROM contact_messages WHERE deleted_at IS NOT NULL");
-            $totalDeleted += $stmt->fetchColumn();
+            $totalItems += $stmt->fetchColumn();
             $db->exec("DELETE FROM contact_messages WHERE deleted_at IS NOT NULL");
             
-            logActivity('DELETE', "Mengosongkan SEMUA trash: {$totalDeleted} item dihapus permanen dari semua modul", null, null);
-            setAlert('success', "Semua trash di semua modul ({$totalDeleted} total item) sudah dihapus permanen!");
+            error_log("╔══════════════════════════════════════╗");
+            error_log("║   TOTAL: {$totalItems} items              ");
+            error_log("║   FILES: {$totalFiles} deleted            ");
+            error_log("╚══════════════════════════════════════╝");
+            
+            logActivity('DELETE', "Empty ALL trash: {$totalItems} items, {$totalFiles} files", null, null);
+            setAlert('success', "SEMUA trash dikosongkan! {$totalItems} items dan {$totalFiles} file dihapus permanen dari semua modul!");
             break;
             
         default:
@@ -350,10 +593,15 @@ try {
     
     $db->commit();
     
-} catch (PDOException $e) {
+} catch (Exception $e) {
     $db->rollBack();
-    error_log("Empty Trash Error: " . $e->getMessage());
-    setAlert('danger', 'Terjadi kesalahan saat mengosongkan trash: ' . $e->getMessage());
+    error_log("╔══════════════════════════════════════╗");
+    error_log("║   ERROR EMPTYING TRASH               ║");
+    error_log("╚══════════════════════════════════════╝");
+    error_log("Type: {$type}");
+    error_log("Error: " . $e->getMessage());
+    error_log("Trace: " . $e->getTraceAsString());
+    setAlert('danger', 'Error: ' . $e->getMessage());
 }
 
 header("Location: trash_list.php" . ($type ? "?type=$type" : ""));

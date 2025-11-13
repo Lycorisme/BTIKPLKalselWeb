@@ -9,18 +9,18 @@ require_once '../../../core/Database.php';
 require_once '../../../core/Helper.php';
 require_once '../../../models/PostCategory.php';
 
-$pageTitle = 'Kelola Kategori';
-$db = Database::getInstance()->getConnection();
+ $pageTitle = 'Kelola Kategori';
+ $db = Database::getInstance()->getConnection();
 
-$itemsPerPage = (int)getSetting('items_per_page', 10);
-$isActive = $_GET['is_active'] ?? '';
-$search = trim($_GET['search'] ?? '');
-$page = max(1, (int)($_GET['page'] ?? 1));
-$showDeleted = $_GET['show_deleted'] ?? '0';
+ $itemsPerPage = (int)getSetting('items_per_page', 10);
+ $isActive = $_GET['is_active'] ?? '';
+ $search = trim($_GET['search'] ?? '');
+ $page = max(1, (int)($_GET['page'] ?? 1));
+ $showDeleted = $_GET['show_deleted'] ?? '0';
 
 // Build WHERE clause - MUST INCLUDE deleted_at check
-$where = [];
-$params = [];
+ $where = [];
+ $params = [];
 
 // DEFAULT: Hanya tampilkan data yang BELUM di-delete
 if ($showDeleted !== '1') {
@@ -41,18 +41,18 @@ if ($search) {
     $params[] = $searchTerm;
 }
 
-$whereClause = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
+ $whereClause = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
 
 // Count total
-$countSql = "SELECT COUNT(*) FROM post_categories pc $whereClause";
-$stmtCount = $db->prepare($countSql);
-$stmtCount->execute($params);
-$totalItems = (int)$stmtCount->fetchColumn();
-$totalPages = max(1, ceil($totalItems / $itemsPerPage));
-$offset = ($page - 1) * $itemsPerPage;
+ $countSql = "SELECT COUNT(*) FROM post_categories pc $whereClause";
+ $stmtCount = $db->prepare($countSql);
+ $stmtCount->execute($params);
+ $totalItems = (int)$stmtCount->fetchColumn();
+ $totalPages = max(1, ceil($totalItems / $itemsPerPage));
+ $offset = ($page - 1) * $itemsPerPage;
 
 // Get data dengan post count
-$sql = "
+ $sql = "
     SELECT 
         pc.*,
         COUNT(p.id) as post_count
@@ -64,20 +64,20 @@ $sql = "
     LIMIT ? OFFSET ?
 ";
 
-$params[] = $itemsPerPage;
-$params[] = $offset;
+ $params[] = $itemsPerPage;
+ $params[] = $offset;
 
-$stmt = $db->prepare($sql);
-$stmt->execute($params);
-$categories = $stmt->fetchAll();
+ $stmt = $db->prepare($sql);
+ $stmt->execute($params);
+ $categories = $stmt->fetchAll();
 
 // Options for dropdown
-$activeOptions = [
+ $activeOptions = [
     '' => 'Semua Status',
     '1' => 'Aktif',
     '0' => 'Nonaktif'
 ];
-$showDeletedOptions = [
+ $showDeletedOptions = [
     '0' => 'Tampilkan Data Aktif',
     '1' => 'Tampilkan Data Terhapus'
 ];
@@ -149,7 +149,7 @@ include '../../includes/header.php';
                         </a>
                     </div>
                 <?php endif; ?>
-                
+                    
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
@@ -198,8 +198,8 @@ include '../../includes/header.php';
                                             </span>
                                         <?php else: ?>
                                             <div class="btn-group btn-group-sm">
-                                                <a href="<?= BASE_URL ?>news/category.php?slug=<?= $cat['slug'] ?>"
-                                                   class="btn btn-info" target="_blank" title="Lihat">
+                                                <a href="categories_view.php?id=<?= $cat['id'] ?>"
+                                                   class="btn btn-info" title="Lihat Post">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
                                                 <?php if (hasRole(['super_admin', 'admin', 'editor'])): ?>
@@ -228,37 +228,39 @@ include '../../includes/header.php';
                 </div>
 
                 <!-- Pagination bawah selalu tampil -->
-                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
-                    <div>
-                        <small class="text-muted">
-                            Halaman <?= $page ?> dari <?= $totalPages ?> · Menampilkan <?= count($categories) ?> dari <?= $totalItems ?> kategori
-                        </small>
-                    </div>
-                    <nav aria-label="Page navigation">
-                        <ul class="pagination mb-0">
-                            <li class="page-item<?= $page <= 1 ? ' disabled' : '' ?>">
-                                <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>">
-                                    <i class="bi bi-chevron-left"></i>
-                                </a>
-                            </li>
-                            <?php
-                            $from = max(1, $page - 2);
-                            $to = min($totalPages, $page + 2);
-                            for ($i = $from; $i <= $to; $i++): ?>
-                                <li class="page-item<?= $i == $page ? ' active' : '' ?>">
-                                    <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>">
-                                        <?= $i ?>
+                <?php if ($totalItems > 0): ?>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
+                        <div>
+                            <small class="text-muted">
+                                Halaman <?= $page ?> dari <?= $totalPages ?> · Menampilkan <?= count($categories) ?> dari <?= $totalItems ?> kategori
+                            </small>
+                        </div>
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination mb-0">
+                                <li class="page-item<?= $page <= 1 ? ' disabled' : '' ?>">
+                                    <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>">
+                                        <i class="bi bi-chevron-left"></i>
                                     </a>
                                 </li>
-                            <?php endfor; ?>
-                            <li class="page-item<?= $page >= $totalPages ? ' disabled' : '' ?>">
-                                <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>">
-                                    <i class="bi bi-chevron-right"></i>
-                                </a>
-                            </li>
-                        </ul>
-                    </nav>
-                </div>
+                                <?php
+                                $from = max(1, $page - 2);
+                                $to = min($totalPages, $page + 2);
+                                for ($i = $from; $i <= $to; $i++): ?>
+                                    <li class="page-item<?= $i == $page ? ' active' : '' ?>">
+                                        <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>">
+                                            <?= $i ?>
+                                        </a>
+                                    </li>
+                                <?php endfor; ?>
+                                <li class="page-item<?= $page >= $totalPages ? ' disabled' : '' ?>">
+                                    <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </section>

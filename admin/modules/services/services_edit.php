@@ -127,7 +127,7 @@ include '../../includes/header.php';
 
                 <?php if (!empty($errors)): ?>
                     <div class="alert alert-danger">
-                        <ul>
+                        <ul class="mb-0">
                             <?php foreach($errors as $error): ?>
                                 <li><?= htmlspecialchars($error) ?></li>
                             <?php endforeach; ?>
@@ -156,9 +156,12 @@ include '../../includes/header.php';
                         <label for="image" class="form-label">Gambar Layanan</label>
                         <input type="file" class="form-control" id="image" name="image" accept="image/*">
                         <?php if ($service['image_path']): ?>
-                            <img src="<?= BASE_URL . $service['image_path'] ?>" alt="Gambar Layanan" class="img-thumbnail mt-2" style="max-height: 150px;">
-                        <?php endif; ?>
-                        <small class="text-muted">Unggah gambar untuk layanan ini (.jpg, .png, .gif).</small>
+                            <img src="<?= BASE_URL . $service['image_path'] ?>" 
+                                 alt="Gambar Layanan" 
+                                 class="img-thumbnail mt-2 mw-100" 
+                                 style="max-height: 150px;">
+                            <?php endif; ?>
+                        <small class="text-muted">Unggah gambar untuk layanan ini (.jpg, .png, .gif). Kosongkan jika tidak ingin mengubah gambar.</small>
                     </div>
                     <div class="mb-3">
                         <label for="description" class="form-label">Deskripsi</label>
@@ -172,11 +175,15 @@ include '../../includes/header.php';
                         </select>
                     </div>
 
-                    <div class="d-flex justify-content-between">
-                        <a href="services_list.php" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Kembali</a>
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Simpan Perubahan</button>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="services_list.php" class="btn btn-secondary flex-fill">
+                            <i class="bi bi-arrow-left"></i> Kembali
+                        </a>
+                        <button type="submit" class="btn btn-primary flex-fill">
+                            <i class="bi bi-save"></i> Simpan Perubahan
+                        </button>
                     </div>
-                </form>
+                    </form>
 
             </div>
         </div>

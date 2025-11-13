@@ -118,7 +118,7 @@ include '../../includes/header.php';
 
                 <?php if (!empty($errors)): ?>
                     <div class="alert alert-danger">
-                        <ul>
+                        <ul class="mb-0">
                             <?php foreach($errors as $error): ?>
                                 <li><?= htmlspecialchars($error) ?></li>
                             <?php endforeach; ?>
@@ -158,12 +158,16 @@ include '../../includes/header.php';
                             <option value="published" <?= (($_POST['status'] ?? '') === 'published') ? 'selected' : '' ?>>Published</option>
                             <option value="draft" <?= (($_POST['status'] ?? 'draft') === 'draft') ? 'selected' : '' ?>>Draft</option>
                         </select>
+                    </div> 
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-primary flex-fill">
+                            <i class="bi bi-save"></i> Simpan Layanan
+                        </button>
+                        <a href="services_list.php" class="btn btn-secondary flex-fill">
+                            <i class="bi bi-x-circle"></i> Batal
+                        </a>
                     </div>
-                    <div class="d-flex justify-content-between">
-                        <a href="services_list.php" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Kembali</a>
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Simpan Layanan</button>
-                    </div>
-                </form>
+                    </form>
 
             </div>
         </div>

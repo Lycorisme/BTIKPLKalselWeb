@@ -298,3 +298,56 @@ function get_site_stats() {
         return ['posts' => 0, 'photos' => 0, 'files' => 0, 'services' => 0];
     }
 }
+
+/**
+ * Get file icon and color based on file type
+ */
+function getFileIcon($file_type) {
+    $file_type = strtolower(trim($file_type));
+    
+    $icons = [
+        // Documents
+        'pdf' => ['icon' => 'fa-file-pdf', 'color' => 'text-red-600'],
+        'doc' => ['icon' => 'fa-file-word', 'color' => 'text-blue-600'],
+        'docx' => ['icon' => 'fa-file-word', 'color' => 'text-blue-600'],
+        'xls' => ['icon' => 'fa-file-excel', 'color' => 'text-green-600'],
+        'xlsx' => ['icon' => 'fa-file-excel', 'color' => 'text-green-600'],
+        'ppt' => ['icon' => 'fa-file-powerpoint', 'color' => 'text-orange-600'],
+        'pptx' => ['icon' => 'fa-file-powerpoint', 'color' => 'text-orange-600'],
+        'txt' => ['icon' => 'fa-file-alt', 'color' => 'text-gray-600'],
+        
+        // Archives
+        'zip' => ['icon' => 'fa-file-archive', 'color' => 'text-yellow-600'],
+        'rar' => ['icon' => 'fa-file-archive', 'color' => 'text-yellow-600'],
+        '7z' => ['icon' => 'fa-file-archive', 'color' => 'text-yellow-600'],
+        
+        // Images
+        'jpg' => ['icon' => 'fa-file-image', 'color' => 'text-purple-600'],
+        'jpeg' => ['icon' => 'fa-file-image', 'color' => 'text-purple-600'],
+        'png' => ['icon' => 'fa-file-image', 'color' => 'text-purple-600'],
+        'gif' => ['icon' => 'fa-file-image', 'color' => 'text-purple-600'],
+        'svg' => ['icon' => 'fa-file-image', 'color' => 'text-purple-600'],
+        
+        // Videos
+        'mp4' => ['icon' => 'fa-file-video', 'color' => 'text-pink-600'],
+        'avi' => ['icon' => 'fa-file-video', 'color' => 'text-pink-600'],
+        'mkv' => ['icon' => 'fa-file-video', 'color' => 'text-pink-600'],
+        'mov' => ['icon' => 'fa-file-video', 'color' => 'text-pink-600'],
+        
+        // Audio
+        'mp3' => ['icon' => 'fa-file-audio', 'color' => 'text-indigo-600'],
+        'wav' => ['icon' => 'fa-file-audio', 'color' => 'text-indigo-600'],
+        'ogg' => ['icon' => 'fa-file-audio', 'color' => 'text-indigo-600'],
+        
+        // Code
+        'php' => ['icon' => 'fa-file-code', 'color' => 'text-indigo-700'],
+        'js' => ['icon' => 'fa-file-code', 'color' => 'text-yellow-500'],
+        'html' => ['icon' => 'fa-file-code', 'color' => 'text-orange-500'],
+        'css' => ['icon' => 'fa-file-code', 'color' => 'text-blue-500'],
+        'json' => ['icon' => 'fa-file-code', 'color' => 'text-green-500'],
+        'xml' => ['icon' => 'fa-file-code', 'color' => 'text-red-500'],
+    ];
+    
+    // Return icon for specific file type or default
+    return $icons[$file_type] ?? ['icon' => 'fa-file', 'color' => 'text-gray-500'];
+}

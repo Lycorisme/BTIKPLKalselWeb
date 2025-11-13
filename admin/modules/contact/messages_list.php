@@ -3,6 +3,8 @@
  * Contact Messages - List (Inbox) - Full Mazer Design
  * Layout di-refaktor agar konsisten dengan files_list.php
  * DITAMBAH: Filter Soft Delete (Tampilkan Data)
+ *
+ * PERBAIKAN: Form filter di-refactor, perbaikan dark mode (table-light dihapus)
  */
 
 require_once '../../includes/auth_check.php';
@@ -20,7 +22,6 @@ $search = trim($_GET['search'] ?? '');
 $page = max(1, (int)($_GET['page'] ?? 1));
 $perPage = (int)($_GET['per_page'] ?? getSetting('items_per_page', 15));
 
-// ================== PERUBAHAN PHP (1) ==================
 $showDeleted = $_GET['show_deleted'] ?? '0';
 $offset = ($page - 1) * $perPage;
 
@@ -34,10 +35,7 @@ $showDeletedOptions = [
     '0' => 'Tampilkan Data Aktif',
     '1' => 'Tampilkan Data Terhapus'
 ];
-// =======================================================
 
-
-// ================== PERUBAHAN PHP (2) ==================
 // Build WHERE clause
 $whereConditions = [];
 $params = [];
@@ -46,7 +44,6 @@ $params = [];
 if ($showDeleted !== '1') {
     $whereConditions[] = "deleted_at IS NULL";
 }
-// =======================================================
 
 if ($status && in_array($status, ['unread', 'read'])) {
     $whereConditions[] = "status = ?";
@@ -86,15 +83,11 @@ $stmt = $db->prepare($sql);
 $stmt->execute($params);
 $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-
-// ================== PERUBAHAN PHP (3) ==================
 // Pastikan Tab Counts juga menghormati filter soft-delete
-
 $tabBaseWhere = "status IN ('unread', 'read')";
 if ($showDeleted !== '1') {
     $tabBaseWhere .= " AND deleted_at IS NULL";
 }
-// =======================================================
 
 // Get status counts for filter tabs
 $countsStmt = $db->query("
@@ -136,7 +129,7 @@ include '../../includes/header.php';
 
     <section class="section">
         <div class="card shadow">
-            <div class="card-header border-bottom">
+            <div class="card-header">
                 <ul class="nav nav-tabs nav-tabs-sm" role="tablist">
                     <li class="nav-item">
                         <a class="nav-link <?= $status === '' ? 'active' : '' ?>" 
@@ -200,10 +193,13 @@ include '../../includes/header.php';
 
                     <div class="col-12 col-md-3 d-flex align-items-end gap-2">
                         <button class="btn btn-primary btn-sm flex-grow-1" type="submit">
-                            <i class="bi bi-search"></i> Cari
+                            <i class="bi bi-search"></i> Filter
                         </button>
                         
-                        <?php if ($search || $showDeleted === '1' || (isset($_GET['per_page']) && $_GET['per_page'] != getSetting('items_per_page', 15))): ?>
+                        <?php 
+                        $isFiltered = $search || $showDeleted === '1' || (isset($_GET['per_page']) && $_GET['per_page'] != getSetting('items_per_page', 15));
+                        if ($isFiltered): 
+                        ?>
                             <a href="?<?= $status ? 'status=' . urlencode($status) : '' ?>" class="btn btn-secondary btn-sm" title="Reset">
                                 <i class="bi bi-x-circle"></i>
                             </a>
@@ -246,10 +242,9 @@ include '../../includes/header.php';
                             </thead>
                             <tbody>
                                 <?php foreach ($messages as $message): 
-                                    // ================== PERUBAHAN HTML (Table) ==================
                                     $isTrashed = !is_null($message['deleted_at'] ?? null);
                                 ?>
-                                    <tr class="<?= $message['status'] === 'unread' ? 'table-light' : '' ?><?= $isTrashed ? ' table-danger text-muted' : '' ?>">
+                                    <tr class="<?= $isTrashed ? ' table-danger text-muted' : '' ?>">
                                         <td>
                                             <?php if ($isTrashed): ?>
                                                 <span class="badge bg-dark">
@@ -266,19 +261,19 @@ include '../../includes/header.php';
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <div class="fw-bold <?= $message['status'] === 'unread' && !$isTrashed ? 'text-dark' : 'text-muted' ?>">
+                                            <div class="fw-bold <?= $message['status'] === 'unread' && !$isTrashed ? '' : 'text-muted' ?> text-break">
                                                 <?= htmlspecialchars($message['name']) ?>
                                             </div>
-                                            <small class="text-muted d-block">
+                                            <small class="text-muted d-block text-break">
                                                 <i class="bi bi-envelope me-1"></i> <?= htmlspecialchars($message['email']) ?>
                                             </small>
                                         </td>
                                         <td>
                                             <a href="messages_view.php?id=<?= $message['id'] ?>" 
-                                               class="text-decoration-none <?= $message['status'] === 'unread' && !$isTrashed ? 'fw-bold text-dark' : 'text-muted' ?>">
+                                               class="text-decoration-none <?= $message['status'] === 'unread' && !$isTrashed ? 'fw-bold' : 'text-muted' ?> text-break">
                                                 <?= htmlspecialchars(truncateText($message['subject'], 50)) ?>
                                             </a>
-                                            <small class="text-muted d-block mt-1">
+                                            <small class="text-muted d-block mt-1 text-break">
                                                 <?= htmlspecialchars(truncateText($message['message'], 80)) ?>
                                             </small>
                                         </td>
@@ -293,7 +288,7 @@ include '../../includes/header.php';
                                                 <span class="text-danger fw-semibold">
                                                     Deleted
                                                 </span>
-                                                <?php else: ?>
+                                            <?php else: ?>
                                                 <div class="btn-group btn-group-sm" role="group">
                                                     <a href="messages_view.php?id=<?= $message['id'] ?>" 
                                                        class="btn btn-outline-primary" 
@@ -320,17 +315,16 @@ include '../../includes/header.php';
 
                     <div class="d-lg-none">
                         <?php foreach ($messages as $message): 
-                            // ================== PERUBAHAN HTML (Mobile) ==================
                             $isTrashed = !is_null($message['deleted_at'] ?? null);
                         ?>
                             <div class="card mb-3 shadow-sm <?= $isTrashed ? 'border-danger' : ($message['status'] === 'unread' ? 'border-primary border-2' : '') ?>">
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-1 <?= $message['status'] === 'unread' && !$isTrashed ? 'fw-bold' : '' ?>">
+                                        <div class="flex-grow-1" style="min-width: 0;"> 
+                                            <h6 class="mb-1 <?= $message['status'] === 'unread' && !$isTrashed ? 'fw-bold' : '' ?> text-break">
                                                 <?= htmlspecialchars($message['name']) ?>
                                             </h6>
-                                            <small class="text-muted d-block mb-2">
+                                            <small class="text-muted d-block mb-2 text-break">
                                                 <i class="bi bi-envelope me-1"></i> <?= htmlspecialchars($message['email']) ?>
                                             </small>
                                         </div>
@@ -350,10 +344,10 @@ include '../../includes/header.php';
                                     </div>
                                     
                                     <div class="mb-3">
-                                        <h6 class="small fw-bold mb-1">
+                                        <h6 class="small fw-bold mb-1 text-break">
                                             <?= htmlspecialchars($message['subject']) ?>
                                         </h6>
-                                        <p class="text-muted small mb-0">
+                                        <p class="text-muted small mb-0 text-break">
                                             <?= htmlspecialchars(truncateText($message['message'], 100)) ?>
                                         </p>
                                     </div>
@@ -443,7 +437,9 @@ include '../../includes/header.php';
                         </div>
                     <?php endif; ?>
                 <?php endif; ?>
-            </div> </div> </section>
+            </div>
+        </div>
+    </section>
 </div>
 
 <?php include '../../includes/footer.php'; ?>

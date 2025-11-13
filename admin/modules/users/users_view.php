@@ -16,34 +16,37 @@ if (!hasRole(['super_admin', 'admin'])) {
     redirect(ADMIN_URL);
 }
 
-$pageTitle = 'Detail Pengguna';
+ $pageTitle = 'Detail Pengguna';
 
-$userModel = new User();
+ $userModel = new User();
 
 // Get user ID
-$userId = $_GET['id'] ?? 0;
-$user = $userModel->find($userId);
+ $userId = $_GET['id'] ?? 0;
+ $user = $userModel->find($userId);
 
 if (!$user) {
     setAlert('danger', 'Pengguna tidak ditemukan');
     redirect(ADMIN_URL . 'modules/users/users_list.php');
 }
 
+// Log activity for viewing user detail
+logActivity('VIEW', "Melihat detail pengguna: {$user['name']}", 'users', $userId);
+
 // Get user's recent activity logs
-$db = Database::getInstance()->getConnection();
-$stmt = $db->prepare("
+ $db = Database::getInstance()->getConnection();
+ $stmt = $db->prepare("
     SELECT * FROM activity_logs 
     WHERE user_id = ? 
     ORDER BY created_at DESC 
     LIMIT 10
 ");
-$stmt->execute([$userId]);
-$activities = $stmt->fetchAll();
+ $stmt->execute([$userId]);
+ $activities = $stmt->fetchAll();
 
 // Get user's posts count
-$stmt = $db->prepare("SELECT COUNT(*) FROM posts WHERE author_id = ? AND deleted_at IS NULL");
-$stmt->execute([$userId]);
-$postsCount = $stmt->fetchColumn();
+ $stmt = $db->prepare("SELECT COUNT(*) FROM posts WHERE author_id = ? AND deleted_at IS NULL");
+ $stmt->execute([$userId]);
+ $postsCount = $stmt->fetchColumn();
 
 include '../../includes/header.php';
 ?>
@@ -52,7 +55,7 @@ include '../../includes/header.php';
     <div class="page-title">
         <div class="row">
             <div class="col-12 col-md-6">
-                <h3><?= $pageTitle ?></h3>
+                <h3><i class=""></i><?= $pageTitle ?></h3>
             </div>
             <div class="col-12 col-md-6">
                 <nav aria-label="breadcrumb" class="breadcrumb-header float-start float-lg-end">
@@ -70,7 +73,7 @@ include '../../includes/header.php';
         <div class="row">
             <!-- User Profile Card -->
             <div class="col-md-4">
-                <div class="card">
+                <div class="card shadow-sm">
                     <div class="card-body text-center py-5">
                         <div class="avatar avatar-xl mb-3">
                             <?php if ($user['photo']): ?>
@@ -99,7 +102,10 @@ include '../../includes/header.php';
                             <?php if ($user['id'] != getCurrentUser()['id']): ?>
                                 <a href="users_delete.php?id=<?= $user['id'] ?>" 
                                    class="btn btn-danger"
-                                   onclick="return confirm('Yakin hapus pengguna ini?')">
+                                   data-confirm-delete
+                                   data-title="Hapus Pengguna"
+                                   data-message="Apakah Anda yakin ingin menghapus pengguna &quot;<?= htmlspecialchars($user['name']) ?>&quot;? Tindakan ini tidak dapat dibatalkan."
+                                   data-loading-text="Menghapus...">
                                     <i class="bi bi-trash"></i> Hapus Pengguna
                                 </a>
                             <?php endif; ?>
@@ -111,7 +117,7 @@ include '../../includes/header.php';
                 </div>
                 
                 <!-- Statistics Card -->
-                <div class="card">
+                <div class="card shadow-sm">
                     <div class="card-header">
                         <h5 class="card-title mb-0">Statistik</h5>
                     </div>
@@ -143,7 +149,7 @@ include '../../includes/header.php';
             <!-- User Information -->
             <div class="col-md-8">
                 <!-- Contact Information -->
-                <div class="card">
+                <div class="card shadow-sm mb-4">
                     <div class="card-header">
                         <h5 class="card-title mb-0">Informasi Kontak</h5>
                     </div>
@@ -166,7 +172,7 @@ include '../../includes/header.php';
                 </div>
                 
                 <!-- System Information -->
-                <div class="card">
+                <div class="card shadow-sm mb-4">
                     <div class="card-header">
                         <h5 class="card-title mb-0">Informasi Sistem</h5>
                     </div>
@@ -211,7 +217,7 @@ include '../../includes/header.php';
                 </div>
                 
                 <!-- Recent Activity -->
-                <div class="card">
+                <div class="card shadow-sm">
                     <div class="card-header">
                         <h5 class="card-title mb-0">Aktivitas Terkini</h5>
                     </div>

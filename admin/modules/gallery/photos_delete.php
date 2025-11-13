@@ -1,6 +1,7 @@
 <?php
 /**
- * Gallery Photos - Delete
+ * Gallery Photos - Delete (Soft Delete)
+ * Improved: Update album cover, check album status, better error handling
  */
 
 require_once '../../includes/auth_check.php';
@@ -24,7 +25,7 @@ $stmt->execute([$photoId]);
 $photo = $stmt->fetch();
 
 if (!$photo) {
-    setAlert('danger', 'Foto tidak ditemukan.');
+    setAlert('danger', 'Foto tidak ditemukan atau sudah dihapus.');
     redirect(ADMIN_URL . 'modules/gallery/albums_list.php');
 }
 
@@ -34,17 +35,64 @@ if (!$albumId) {
 }
 
 try {
+    $db->beginTransaction();
+    
+    // Check if this photo is used as album cover
+    $stmt = $db->prepare("SELECT id, name, cover_photo FROM gallery_albums WHERE id = ? AND deleted_at IS NULL");
+    $stmt->execute([$albumId]);
+    $album = $stmt->fetch();
+    
+    $isCoverPhoto = false;
+    if ($album && $album['cover_photo'] === $photo['filename']) {
+        $isCoverPhoto = true;
+        
+        // Find another active photo in the album to use as new cover
+        $stmt = $db->prepare("
+            SELECT filename 
+            FROM gallery_photos 
+            WHERE album_id = ? AND id != ? AND deleted_at IS NULL 
+            ORDER BY display_order ASC, created_at DESC 
+            LIMIT 1
+        ");
+        $stmt->execute([$albumId, $photoId]);
+        $newCover = $stmt->fetch();
+        
+        // Update album cover
+        if ($newCover) {
+            $stmt = $db->prepare("UPDATE gallery_albums SET cover_photo = ? WHERE id = ?");
+            $stmt->execute([$newCover['filename'], $albumId]);
+        } else {
+            // No more photos, set cover to NULL
+            $stmt = $db->prepare("UPDATE gallery_albums SET cover_photo = NULL WHERE id = ?");
+            $stmt->execute([$albumId]);
+        }
+    }
+    
     // Soft delete photo
     $stmt = $db->prepare("UPDATE gallery_photos SET deleted_at = NOW() WHERE id = ?");
     $stmt->execute([$photoId]);
     
     // Log activity
-    logActivity('DELETE', "Menghapus foto: {$photo['title']}", 'gallery_photos', $photoId);
+    $photoTitle = $photo['title'] ?: "Photo #{$photoId}";
+    $logMessage = "Menghapus foto: {$photoTitle}";
+    if ($isCoverPhoto) {
+        $logMessage .= " (cover photo album)";
+    }
+    logActivity('DELETE', $logMessage, 'gallery_photos', $photoId);
     
-    setAlert('success', 'Foto berhasil dihapus!');
+    $db->commit();
+    
+    // Success message
+    if ($isCoverPhoto) {
+        setAlert('success', 'Foto cover berhasil dihapus dan cover album telah diperbarui!');
+    } else {
+        setAlert('success', 'Foto berhasil dipindahkan ke trash!');
+    }
     
 } catch (PDOException $e) {
-    error_log($e->getMessage());
+    $db->rollBack();
+    error_log("Photo Delete Error: " . $e->getMessage());
+    error_log("Photo ID: {$photoId}, Album ID: {$albumId}");
     setAlert('danger', 'Gagal menghapus foto. Silakan coba lagi.');
 }
 

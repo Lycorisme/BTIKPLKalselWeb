@@ -7,13 +7,13 @@ require_once '../../includes/auth_check.php';
 require_once '../../../core/Database.php';
 require_once '../../../core/Helper.php';
 
-$pageTitle = 'Edit Album';
-$currentPage = 'albums_list';
+ $pageTitle = 'Edit Album';
+ $currentPage = 'albums_list';
 
-$db = Database::getInstance()->getConnection();
+ $db = Database::getInstance()->getConnection();
 
 // Get album ID
-$albumId = $_GET['id'] ?? null;
+ $albumId = $_GET['id'] ?? null;
 
 if (!$albumId) {
     setAlert('danger', 'Album tidak ditemukan.');
@@ -21,9 +21,9 @@ if (!$albumId) {
 }
 
 // Get album data
-$stmt = $db->prepare("SELECT * FROM gallery_albums WHERE id = ? AND deleted_at IS NULL");
-$stmt->execute([$albumId]);
-$album = $stmt->fetch();
+ $stmt = $db->prepare("SELECT * FROM gallery_albums WHERE id = ? AND deleted_at IS NULL");
+ $stmt->execute([$albumId]);
+ $album = $stmt->fetch();
 
 if (!$album) {
     setAlert('danger', 'Album tidak ditemukan.');
@@ -69,8 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if (move_uploaded_file($file['tmp_name'], $uploadPath . $filename)) {
                 // Delete old cover photo
-                if ($coverPhoto && uploadExists($coverPhoto)) {
-                    unlink(uploadPath($coverPhoto));
+                if ($coverPhoto && file_exists($uploadPath . $coverPhoto)) {
+                    unlink($uploadPath . $coverPhoto);
                 }
                 $coverPhoto = 'gallery/albums/' . $filename;
             }
@@ -79,8 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Handle remove cover photo
     if (isset($_POST['remove_cover']) && $_POST['remove_cover'] === '1') {
-        if ($coverPhoto && uploadExists($coverPhoto)) {
-            unlink(uploadPath($coverPhoto));
+        if ($coverPhoto && file_exists($uploadPath . $coverPhoto)) {
+            unlink($uploadPath . $coverPhoto);
         }
         $coverPhoto = null;
     }
@@ -126,7 +126,7 @@ include '../../includes/header.php';
     <div class="page-title">
         <div class="row">
             <div class="col-12 col-md-6">
-                <h3><?= $pageTitle ?></h3>
+                <h3><i class="bi bi-images me-2"></i><?= $pageTitle ?></h3>
             </div>
             <div class="col-12 col-md-6">
                 <nav aria-label="breadcrumb" class="breadcrumb-header float-start float-lg-end">
@@ -143,7 +143,7 @@ include '../../includes/header.php';
     <section class="section">
         <div class="row">
             <div class="col-lg-8">
-                <div class="card">
+                <div class="card shadow-sm">
                     <div class="card-header">
                         <h5 class="card-title mb-0">Edit Informasi Album</h5>
                     </div>
@@ -180,7 +180,7 @@ include '../../includes/header.php';
                                         <img src="<?= uploadUrl($album['cover_photo']) ?>" 
                                              alt="Cover" 
                                              class="img-thumbnail" 
-                                             style="max-height: 200px;"
+                                             style="max-height:200px;"
                                              id="current-cover">
                                         <button type="button" 
                                                 class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2"
@@ -207,7 +207,7 @@ include '../../includes/header.php';
                                 
                                 <!-- Preview -->
                                 <div id="cover-preview" class="mt-3" style="display: none;">
-                                    <img src="" alt="Preview" class="img-thumbnail" style="max-height: 200px;">
+                                    <img src="" alt="Preview" class="img-thumbnail" style="max-height:200px;">
                                 </div>
                             </div>
                             
@@ -253,7 +253,7 @@ include '../../includes/header.php';
             
             <!-- Stats Card -->
             <div class="col-lg-4">
-                <div class="card">
+                <div class="card shadow-sm">
                     <div class="card-header">
                         <h5 class="card-title mb-0">Informasi Album</h5>
                     </div>
@@ -305,11 +305,125 @@ function previewImage(input, previewId) {
 }
 
 function removeCover() {
-    if (confirm('Yakin ingin menghapus cover photo?')) {
-        document.getElementById('remove_cover').value = '1';
-        document.getElementById('current-cover').style.display = 'none';
-        document.getElementById('remove-btn').style.display = 'none';
+    // Use custom confirmation dialog
+    showConfirmDialog(
+        'Hapus Cover Photo',
+        'Apakah Anda yakin ingin menghapus cover photo ini?',
+        'danger',
+        'Hapus',
+        'Batal',
+        function() {
+            document.getElementById('remove_cover').value = '1';
+            document.getElementById('current-cover').style.display = 'none';
+            document.getElementById('remove-btn').style.display = 'none';
+        }
+    );
+}
+
+// Custom notification system
+function showNotification(message, type = 'success') {
+    // Create notification container if it doesn't exist
+    let container = document.querySelector('.btikp-notification-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'btikp-notification-container';
+        document.body.appendChild(container);
     }
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `btikp-toast btikp-toast-${type}`;
+    
+    // Determine icon based on type
+    let icon = 'check-circle';
+    if (type === 'danger' || type === 'error') icon = 'exclamation-triangle';
+    if (type === 'warning') icon = 'exclamation-triangle';
+    if (type === 'info') icon = 'info-circle';
+    
+    notification.innerHTML = `
+        <div class="btikp-toast-icon">
+            <i class="bi bi-${icon}"></i>
+        </div>
+        <div class="btikp-toast-content">
+            <div class="btikp-toast-title">${type.charAt(0).toUpperCase() + type.slice(1)}</div>
+            <div class="btikp-toast-message">${message}</div>
+        </div>
+        <button class="btikp-toast-close">
+            <i class="bi bi-x"></i>
+        </button>
+    `;
+    
+    // Add close functionality
+    notification.querySelector('.btikp-toast-close').addEventListener('click', () => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+    });
+    
+    // Add to container
+    container.appendChild(notification);
+    
+    // Trigger animation
+    setTimeout(() => notification.classList.add('show'), 10);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// Custom confirmation dialog system
+function showConfirmDialog(title, message, type = 'danger', confirmText = 'Hapus', cancelText = 'Batal', onConfirm) {
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'btikp-alert-overlay';
+    
+    // Determine icon based on type
+    let icon = 'exclamation-triangle';
+    if (type === 'success') icon = 'check-circle';
+    if (type === 'warning') icon = 'exclamation-triangle';
+    if (type === 'info') icon = 'info-circle';
+    
+    // Create dialog
+    const dialog = document.createElement('div');
+    dialog.className = 'btikp-alert';
+    dialog.innerHTML = `
+        <div class="btikp-alert-icon">
+            <i class="bi bi-${icon}"></i>
+        </div>
+        <div class="btikp-alert-title">${title}</div>
+        <div class="btikp-alert-message">${message}</div>
+        <div class="btikp-alert-actions">
+            <button class="btikp-btn btikp-btn-secondary">${cancelText}</button>
+            <button class="btikp-btn btikp-btn-${type}">${confirmText}</button>
+        </div>
+    `;
+    
+    // Add to overlay
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    
+    // Add event listeners
+    const confirmBtn = dialog.querySelector('.btikp-btn-' + type);
+    const cancelBtn = dialog.querySelector('.btikp-btn-secondary');
+    
+    confirmBtn.addEventListener('click', () => {
+        overlay.classList.remove('show');
+        setTimeout(() => {
+            document.body.removeChild(overlay);
+            onConfirm();
+        }, 300);
+    });
+    
+    cancelBtn.addEventListener('click', () => {
+        overlay.classList.remove('show');
+        setTimeout(() => {
+            document.body.removeChild(overlay);
+        }, 300);
+    });
+    
+    // Trigger animation
+    setTimeout(() => overlay.classList.add('show'), 10);
 }
 </script>
 

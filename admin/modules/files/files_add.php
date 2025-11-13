@@ -61,8 +61,8 @@ include '../../includes/header.php';
     <div class="page-title">
         <div class="row align-items-center">
             <div class="col-12 col-md-6 mb-2 mb-md-0">
-                <h3><i class=""></i><?= $pageTitle ?></h3>
-                <p class="text-subtitle text-muted mb-0">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+                <h3><?= $pageTitle ?></h3>
+                <p class="text-subtitle text-muted mb-0"></p>
             </div>
             <div class="col-12 col-md-6">
                 <nav aria-label="breadcrumb" class="breadcrumb-header float-md-end">
@@ -80,7 +80,7 @@ include '../../includes/header.php';
         <div class="row">
             <div class="col-12 col-lg-8">
                 <div class="card shadow-sm">
-                    <div class="card-header border-bottom">
+                    <div class="card-header">
                         <h5 class="mb-0">Upload File Baru</h5>
                     </div>
                     <div class="card-body">
@@ -132,7 +132,7 @@ include '../../includes/header.php';
             
             <div class="col-12 col-lg-4">
                 <div class="card shadow-sm">
-                    <div class="card-header border-bottom">
+                    <div class="card-header">
                         <h5 class="mb-0">Panduan Upload</h5>
                     </div>
                     <div class="card-body">
@@ -166,7 +166,7 @@ include '../../includes/header.php';
                 </div>
                 
                 <div class="card shadow-sm mt-3">
-                    <div class="card-header border-bottom">
+                    <div class="card-header">
                         <h5 class="mb-0">Preview File</h5>
                     </div>
                     <div class="card-body">
@@ -177,7 +177,7 @@ include '../../includes/header.php';
                         <div id="fileInfo" class="d-none">
                             <div class="mb-2">
                                 <small class="text-muted">Nama File:</small>
-                                <div id="fileName"></div>
+                                <div id="fileName" class="text-break"></div>
                             </div>
                             <div class="mb-2">
                                 <small class="text-muted">Ukuran:</small>
@@ -239,23 +239,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 iconColor = 'text-info';
             } else if (['zip', 'rar', '7z'].includes(ext)) {
                 iconClass = 'bi-file-earmark-zip';
-                // [FIXED] 'text-dark' changed to 'text-secondary'
                 iconColor = 'text-secondary';
             }
             
             // Update preview with icon
+            // ===== PERBAIKAN: Menambah text-break pada <p> =====
             filePreviewContainer.innerHTML = `
                 <i class="bi ${iconClass} ${iconColor}" style="font-size: 3rem;"></i>
-                <p class="text-muted mt-2">${file.name}</p>
+                <p class="text-muted mt-2 text-break">${file.name}</p>
             `;
             
             // If it's an image, show a preview
             if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
+                    // ===== PERBAIKAN: Menambah text-break pada <p> =====
                     filePreviewContainer.innerHTML = `
                         <img src="${e.target.result}" class="img-fluid rounded" style="max-height: 200px;" alt="Preview">
-                        <p class="text-muted mt-2">${file.name}</p>
+                        <p class="text-muted mt-2 text-break">${file.name}</p>
                     `;
                 };
                 reader.readAsDataURL(file);

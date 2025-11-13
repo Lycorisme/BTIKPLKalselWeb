@@ -1,6 +1,7 @@
 <?php
 /**
- * Gallery Albums - Delete
+ * Gallery Albums - Delete (Soft Delete)
+ * Improved: Cascade soft delete to photos, handle cover photo, better logging
  */
 
 require_once '../../includes/auth_check.php';
@@ -23,26 +24,48 @@ $stmt->execute([$albumId]);
 $album = $stmt->fetch();
 
 if (!$album) {
-    setAlert('danger', 'Album tidak ditemukan.');
+    setAlert('danger', 'Album tidak ditemukan atau sudah dihapus.');
     redirect(ADMIN_URL . 'modules/gallery/albums_list.php');
 }
 
 try {
+    $db->beginTransaction();
+    
+    // Count photos in album
+    $stmt = $db->prepare("SELECT COUNT(*) FROM gallery_photos WHERE album_id = ? AND deleted_at IS NULL");
+    $stmt->execute([$albumId]);
+    $photoCount = $stmt->fetchColumn();
+    
+    // Soft delete all active photos in this album (CASCADE)
+    if ($photoCount > 0) {
+        $stmt = $db->prepare("UPDATE gallery_photos SET deleted_at = NOW() WHERE album_id = ? AND deleted_at IS NULL");
+        $stmt->execute([$albumId]);
+    }
+    
     // Soft delete album
     $stmt = $db->prepare("UPDATE gallery_albums SET deleted_at = NOW() WHERE id = ?");
     $stmt->execute([$albumId]);
     
-    // Soft delete all photos in this album
-    $stmt = $db->prepare("UPDATE gallery_photos SET deleted_at = NOW() WHERE album_id = ? AND deleted_at IS NULL");
-    $stmt->execute([$albumId]);
+    // Log activity with photo count
+    $logMessage = "Menghapus album gallery: {$album['name']}";
+    if ($photoCount > 0) {
+        $logMessage .= " ({$photoCount} foto)";
+    }
+    logActivity('DELETE', $logMessage, 'gallery_albums', $albumId);
     
-    // Log activity
-    logActivity('DELETE', "Menghapus album gallery: {$album['name']}", 'gallery_albums', $albumId);
+    $db->commit();
     
-    setAlert('success', 'Album dan semua foto di dalamnya berhasil dihapus!');
+    // Success message
+    if ($photoCount > 0) {
+        setAlert('success', "Album \"{$album['name']}\" dan {$photoCount} foto berhasil dipindahkan ke trash!");
+    } else {
+        setAlert('success', "Album \"{$album['name']}\" berhasil dipindahkan ke trash!");
+    }
     
 } catch (PDOException $e) {
-    error_log($e->getMessage());
+    $db->rollBack();
+    error_log("Album Delete Error: " . $e->getMessage());
+    error_log("Album ID: {$albumId}");
     setAlert('danger', 'Gagal menghapus album. Silakan coba lagi.');
 }
 

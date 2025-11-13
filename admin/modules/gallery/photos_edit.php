@@ -7,13 +7,13 @@ require_once '../../includes/auth_check.php';
 require_once '../../../core/Database.php';
 require_once '../../../core/Helper.php';
 
-$pageTitle = 'Edit Foto';
-$currentPage = 'photos_edit';
+ $pageTitle = 'Edit Foto';
+ $currentPage = 'photos_edit';
 
-$db = Database::getInstance()->getConnection();
+ $db = Database::getInstance()->getConnection();
 
 // Get photo ID
-$photoId = $_GET['id'] ?? null;
+ $photoId = $_GET['id'] ?? null;
 
 if (!$photoId) {
     setAlert('danger', 'Foto tidak ditemukan.');
@@ -21,14 +21,14 @@ if (!$photoId) {
 }
 
 // Get photo data with album info
-$stmt = $db->prepare("
+ $stmt = $db->prepare("
     SELECT p.*, a.name as album_name 
     FROM gallery_photos p
     LEFT JOIN gallery_albums a ON p.album_id = a.id
     WHERE p.id = ? AND p.deleted_at IS NULL
 ");
-$stmt->execute([$photoId]);
-$photo = $stmt->fetch();
+ $stmt->execute([$photoId]);
+ $photo = $stmt->fetch();
 
 if (!$photo) {
     setAlert('danger', 'Foto tidak ditemukan.');
@@ -82,7 +82,7 @@ include '../../includes/header.php';
     <div class="page-title">
         <div class="row">
             <div class="col-12 col-md-6">
-                <h3><?= $pageTitle ?></h3>
+                <h3><i class="bi bi-image me-2"></i><?= $pageTitle ?></h3>
                 <p class="text-subtitle text-muted">Album: <strong><?= htmlspecialchars($photo['album_name']) ?></strong></p>
             </div>
             <div class="col-12 col-md-6">
@@ -101,7 +101,7 @@ include '../../includes/header.php';
     <section class="section">
         <div class="row">
             <div class="col-lg-8">
-                <div class="card">
+                <div class="card shadow-sm">
                     <div class="card-header">
                         <h5 class="card-title mb-0">Edit Detail Foto</h5>
                     </div>
@@ -195,7 +195,7 @@ include '../../includes/header.php';
             
             <!-- Info Card -->
             <div class="col-lg-4">
-                <div class="card">
+                <div class="card shadow-sm">
                     <div class="card-header">
                         <h5 class="card-title mb-0">Info Foto</h5>
                     </div>
@@ -227,7 +227,10 @@ include '../../includes/header.php';
                         
                         <a href="photos_delete.php?id=<?= $photo['id'] ?>&album_id=<?= $photo['album_id'] ?>" 
                            class="btn btn-danger w-100"
-                           onclick="return confirm('Yakin ingin menghapus foto ini?')">
+                           data-confirm-delete
+                           data-title="Hapus Foto"
+                           data-message="Apakah Anda yakin ingin menghapus foto ini? Tindakan ini tidak dapat dibatalkan."
+                           data-loading-text="Menghapus...">
                             <i class="bi bi-trash"></i> Hapus Foto
                         </a>
                     </div>

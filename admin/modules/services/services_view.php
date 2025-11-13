@@ -20,6 +20,7 @@ if (!$service) {
     redirect(ADMIN_URL . 'modules/services/services_list.php');
 }
 
+$pageTitle = 'Detail Layanan'; // Menambahkan pageTitle
 include '../../includes/header.php';
 ?>
 
@@ -27,7 +28,7 @@ include '../../includes/header.php';
     <div class="page-title">
         <div class="row align-items-center">
             <div class="col-12 col-md-6">
-                <h3>Detail Layanan</h3>
+                <h3><?= $pageTitle ?></h3>
             </div>
             <div class="col-12 col-md-6">
                 <nav aria-label="breadcrumb" class="breadcrumb-header float-md-end">
@@ -45,21 +46,58 @@ include '../../includes/header.php';
     <section class="section">
         <div class="card shadow-sm">
             <div class="card-body">
-                <h4><?= htmlspecialchars($service['title']) ?></h4>
+                
+                <h4 class="card-title text-break"><?= htmlspecialchars($service['title']) ?></h4>
                 <?php if ($service['image_path']): ?>
-                    <img src="<?= BASE_URL . $service['image_path'] ?>" alt="Gambar Layanan" class="img-fluid mb-3" style="max-height:300px;">
+                    <img src="<?= BASE_URL . $service['image_path'] ?>" 
+                         alt="Gambar Layanan" 
+                         class="img-fluid rounded mb-3" 
+                         style="max-height:300px; object-fit: cover; width: 100%;">
                 <?php endif; ?>
-                <p><strong>URL Website:</strong> 
-                   <?php if ($service['service_url']): ?>
-                       <a href="<?= htmlspecialchars($service['service_url']) ?>" target="_blank"><?= htmlspecialchars($service['service_url']) ?></a>
-                   <?php else: ?>
-                       (Tidak ada URL)
-                   <?php endif; ?>
-                </p>
-                <p><strong>Deskripsi:</strong><br><?= nl2br(htmlspecialchars($service['description'])) ?></p>
-                <p><strong>Status:</strong> <?= $service['status'] === 'published' ? 'Published' : 'Draft' ?></p>
-                <a href="services_edit.php?id=<?= $service['id'] ?>" class="btn btn-warning me-2"><i class="bi bi-pencil"></i> Edit Layanan</a>
-                <a href="services_list.php" class="btn btn-secondary"><i class="bi bi-list"></i> Kembali ke Daftar</a>
+
+                <div class="mb-3">
+                    <strong>URL Website:</strong>
+                    <?php if ($service['service_url']): ?>
+                        <a href="<?= htmlspecialchars($service['service_url']) ?>" 
+                           target="_blank" 
+                           class="text-break">
+                           <?= htmlspecialchars($service['service_url']) ?>
+                        </a>
+                        <?php else: ?>
+                        <span class="text-muted">(Tidak ada URL)</span>
+                    <?php endif; ?>
+                </div>
+
+                <div classm"mb-3">
+                    <strong>Deskripsi:</strong>
+                    <p class="mb-0 text-break">
+                        <?= $service['description'] ? nl2br(htmlspecialchars($service['description'])) : '<span class="text-muted">Tidak ada deskripsi.</span>' ?>
+                    </p>
+                    </div>
+
+                <div class="mb-4 mt-3">
+                    <strong>Status:</strong> <?= getStatusBadge($service['status']) ?>
+                </div>
+
+                <hr>
+                
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="services_edit.php?id=<?= $service['id'] ?>" class="btn btn-warning flex-fill">
+                        <i class="bi bi-pencil"></i> Edit Layanan
+                    </a>
+                    <a href="services_delete.php?id=<?= $service['id'] ?>" 
+                       class="btn btn-danger flex-fill"
+                       data-confirm-delete
+                       data-title="<?= htmlspecialchars($service['title']) ?>"
+                       data-message="Layanan &quot;<?= htmlspecialchars($service['title']) ?>&quot; akan dipindahkan ke Trash. Lanjutkan?"
+                       data-loading-text="Menghapus layanan..."
+                       title="Hapus">
+                        <i class="bi bi-trash"></i> Hapus
+                    </a>
+                    <a href="services_list.php" class="btn btn-secondary flex-fill">
+                        <i class="bi bi-list"></i> Kembali ke Daftar
+                    </a>
+                </div>
             </div>
         </div>
     </section>

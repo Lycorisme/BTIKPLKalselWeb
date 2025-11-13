@@ -80,6 +80,24 @@ $showDeletedOptions = [
 include '../../includes/header.php';
 ?>
 
+<!-- 
+================================================================
+ CSS PERBAIKAN UNTUK TEXT OVERFLOW
+================================================================
+-->
+<style>
+.truncate-text {
+    display: inline-block;
+    max-width: 300px; /* Lebar maksimum teks sebelum dipotong */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle; /* Menjaga teks tetap rapi di tengah sel */
+}
+</style>
+<!-- ============================================================ -->
+
+
 <div class="page-heading">
     <div class="page-title">
         <div class="row">
@@ -180,12 +198,23 @@ include '../../includes/header.php';
                                 <tr<?= $isTrashed ? ' class="table-danger text-muted"' : '' ?>>
                                     <td><?= $offset + $i + 1 ?></td>
                                     <td>
-                                        <strong><?= htmlspecialchars($service['title']) ?></strong>
+                                        <!-- ===== PERBAIKAN DI SINI ===== -->
+                                        <strong class="truncate-text" title="<?= htmlspecialchars($service['title']) ?>">
+                                            <?= htmlspecialchars($service['title']) ?>
+                                        </strong>
+                                        <!-- ========================== -->
+
                                         <?php if ($isTrashed): ?>
                                             <span class="badge bg-secondary ms-2">Terhapus</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td><code><?= htmlspecialchars($service['slug']) ?></code></td>
+                                    <td>
+                                        <!-- ===== PERBAIKAN DI SINI ===== -->
+                                        <code class="truncate-text" title="<?= htmlspecialchars($service['slug']) ?>">
+                                            <?= htmlspecialchars($service['slug']) ?>
+                                        </code>
+                                        <!-- ========================== -->
+                                    </td>
                                     <td>
                                         <small><?= truncateText(strip_tags($service['description'] ?? ''), 60) ?></small>
                                     </td>

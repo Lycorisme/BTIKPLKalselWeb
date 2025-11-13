@@ -7,13 +7,13 @@ require_once '../../includes/auth_check.php';
 require_once '../../../core/Database.php';
 require_once '../../../core/Helper.php';
 
-$pageTitle = 'Kelola Foto';
-$currentPage = 'photos_list';
+ $pageTitle = 'Kelola Foto';
+ $currentPage = 'photos_list';
 
-$db = Database::getInstance()->getConnection();
+ $db = Database::getInstance()->getConnection();
 
 // Get album ID from URL
-$albumId = (int)($_GET['album_id'] ?? 0);
+ $albumId = (int)($_GET['album_id'] ?? 0);
 
 if (!$albumId) {
     setAlert('danger', 'Album tidak ditemukan.');
@@ -21,9 +21,9 @@ if (!$albumId) {
 }
 
 // Get album data - CHECK deleted_at IS NULL
-$stmt = $db->prepare("SELECT * FROM gallery_albums WHERE id = ? AND deleted_at IS NULL");
-$stmt->execute([$albumId]);
-$album = $stmt->fetch();
+ $stmt = $db->prepare("SELECT * FROM gallery_albums WHERE id = ? AND deleted_at IS NULL");
+ $stmt->execute([$albumId]);
+ $album = $stmt->fetch();
 
 if (!$album) {
     setAlert('danger', 'Album tidak ditemukan.');
@@ -31,7 +31,7 @@ if (!$album) {
 }
 
 // Get all photos in this album - CHECK deleted_at IS NULL
-$stmt = $db->prepare("
+ $stmt = $db->prepare("
     SELECT 
         p.*,
         u.name as uploader_name
@@ -40,8 +40,8 @@ $stmt = $db->prepare("
     WHERE p.album_id = ? AND p.deleted_at IS NULL
     ORDER BY p.display_order ASC, p.created_at DESC
 ");
-$stmt->execute([$albumId]);
-$photos = $stmt->fetchAll();
+ $stmt->execute([$albumId]);
+ $photos = $stmt->fetchAll();
 
 include '../../includes/header.php';
 ?>
@@ -50,7 +50,7 @@ include '../../includes/header.php';
     <div class="page-title">
         <div class="row">
             <div class="col-12 col-md-6">
-                <h3><?= $pageTitle ?></h3>
+                <h3><i class=""></i><?= $pageTitle ?></h3>
                 <p class="text-subtitle text-muted">Album: <strong><?= htmlspecialchars($album['name']) ?></strong></p>
             </div>
             <div class="col-12 col-md-6">
@@ -69,12 +69,12 @@ include '../../includes/header.php';
         <!-- Action Buttons Card -->
         <div class="card shadow mb-3">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <div class="d-flex gap-2">
                         <a href="albums_list.php" class="btn btn-secondary">
-                            <i class="bi bi-arrow-left"></i> Kembali ke Albums
+                            <i class="bi bi-x-circle"></i> Batal
                         </a>
-                        <a href="albums_edit.php?id=<?= $album['id'] ?>" class="btn btn-outline-primary">
+                        <a href="albums_edit.php?id=<?= $album['id'] ?>" class="btn btn-warning">
                             <i class="bi bi-pencil"></i> Edit Album
                         </a>
                     </div>
@@ -151,7 +151,7 @@ include '../../includes/header.php';
                     <div class="row" id="photos-grid">
                         <?php foreach ($photos as $photo): ?>
                             <div class="col-lg-3 col-md-4 col-sm-6 mb-4" data-photo-id="<?= $photo['id'] ?>">
-                                <div class="card h-100 photo-card">
+                                <div class="card h-100 photo-card shadow-sm">
                                     <!-- Drag Handle Indicator -->
                                     <div class="drag-handle" title="Drag untuk reorder">
                                         <i class="bi bi-grip-vertical"></i>
@@ -199,7 +199,7 @@ include '../../includes/header.php';
                                             </button>
                                             <button type="button"
                                                     class="btn btn-outline-danger"
-                                                    onclick="quickDeletePhoto(<?= $photo['id'] ?>, this.closest('[data-photo-id]'))"
+                                                    onclick="quickDeletePhoto(<?= $photo['id'] ?>)"
                                                     title="Hapus">
                                                 <i class="bi bi-trash"></i>
                                             </button>
@@ -280,68 +280,86 @@ function reorderPhotos(photoIds) {
 }
 
 // Quick delete photo
-function quickDeletePhoto(photoId, cardElement) {
-    if (!confirm('Yakin ingin menghapus foto ini?')) return;
-    
-    const deleteBtn = cardElement.querySelector('.btn-outline-danger');
-    deleteBtn.disabled = true;
-    
-    fetch('ajax/quick_delete.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({photo_id: photoId})
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            cardElement.style.transition = 'opacity 0.3s, transform 0.3s';
-            cardElement.style.opacity = '0';
-            cardElement.style.transform = 'scale(0.8)';
+function quickDeletePhoto(photoId) {
+    // Use custom confirmation dialog
+    showConfirmDialog(
+        'Hapus Foto',
+        'Apakah Anda yakin ingin menghapus foto ini? Tindakan ini tidak dapat dibatalkan.',
+        'danger',
+        'Hapus',
+        'Batal',
+        function() {
+            // Find the photo card
+            const cardElement = document.querySelector(`[data-photo-id="${photoId}"]`);
+            const deleteBtn = cardElement.querySelector('.btn-outline-danger');
+            deleteBtn.disabled = true;
             
-            setTimeout(() => {
-                cardElement.remove();
-                showNotification('Foto berhasil dihapus!', 'success');
-                if (document.querySelectorAll('[data-photo-id]').length === 0) {
-                    location.reload();
+            fetch('ajax/quick_delete.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({photo_id: photoId})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    cardElement.style.transition = 'opacity 0.3s, transform 0.3s';
+                    cardElement.style.opacity = '0';
+                    cardElement.style.transform = 'scale(0.8)';
+                    
+                    setTimeout(() => {
+                        cardElement.remove();
+                        showNotification('Foto berhasil dihapus!', 'success');
+                        if (document.querySelectorAll('[data-photo-id]').length === 0) {
+                            location.reload();
+                        }
+                    }, 300);
+                } else {
+                    deleteBtn.disabled = false;
+                    showNotification('Gagal hapus foto: ' + data.message, 'danger');
                 }
-            }, 300);
-        } else {
-            deleteBtn.disabled = false;
-            showNotification('Gagal hapus foto: ' + data.message, 'danger');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                deleteBtn.disabled = false;
+                showNotification('Terjadi kesalahan saat hapus foto', 'danger');
+            });
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        deleteBtn.disabled = false;
-        showNotification('Terjadi kesalahan saat hapus foto', 'danger');
-    });
+    );
 }
 
 // Set cover photo
 function setCover(photoId) {
-    if (!confirm('Set foto ini sebagai cover album?')) return;
-    
-    fetch('ajax/set_cover.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            photo_id: photoId,
-            album_id: <?= $album['id'] ?>
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification('Cover album berhasil diupdate!', 'success');
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            showNotification('Gagal update cover: ' + data.message, 'danger');
+    // Use custom confirmation dialog
+    showConfirmDialog(
+        'Set sebagai Cover',
+        'Apakah Anda yakin ingin menjadikan foto ini sebagai cover album?',
+        'warning',
+        'Set sebagai Cover',
+        'Batal',
+        function() {
+            fetch('ajax/set_cover.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    photo_id: photoId,
+                    album_id: <?= $album['id'] ?>
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Cover album berhasil diupdate!', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showNotification('Gagal update cover: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Terjadi kesalahan saat update cover', 'danger');
+            });
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('Terjadi kesalahan saat update cover', 'danger');
-    });
+    );
 }
 
 // View photo in modal
@@ -351,21 +369,110 @@ function viewPhoto(url, title) {
     new bootstrap.Modal(document.getElementById('photoModal')).show();
 }
 
-// Show notification toast
+// Custom notification system
 function showNotification(message, type = 'success') {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    alertDiv.innerHTML = `
-        <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i> 
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    document.body.appendChild(alertDiv);
+    // Create notification container if it doesn't exist
+    let container = document.querySelector('.btikp-notification-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'btikp-notification-container';
+        document.body.appendChild(container);
+    }
     
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `btikp-toast btikp-toast-${type}`;
+    
+    // Determine icon based on type
+    let icon = 'check-circle';
+    if (type === 'danger' || type === 'error') icon = 'exclamation-triangle';
+    if (type === 'warning') icon = 'exclamation-triangle';
+    if (type === 'info') icon = 'info-circle';
+    
+    notification.innerHTML = `
+        <div class="btikp-toast-icon">
+            <i class="bi bi-${icon}"></i>
+        </div>
+        <div class="btikp-toast-content">
+            <div class="btikp-toast-title">${type.charAt(0).toUpperCase() + type.slice(1)}</div>
+            <div class="btikp-toast-message">${message}</div>
+        </div>
+        <button class="btikp-toast-close">
+            <i class="bi bi-x"></i>
+        </button>
+    `;
+    
+    // Add close functionality
+    notification.querySelector('.btikp-toast-close').addEventListener('click', () => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+    });
+    
+    // Add to container
+    container.appendChild(notification);
+    
+    // Trigger animation
+    setTimeout(() => notification.classList.add('show'), 10);
+    
+    // Auto remove after 3 seconds
     setTimeout(() => {
-        alertDiv.remove();
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
     }, 3000);
+}
+
+// Custom confirmation dialog system
+function showConfirmDialog(title, message, type = 'danger', confirmText = 'Hapus', cancelText = 'Batal', onConfirm) {
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'btikp-alert-overlay';
+    
+    // Determine icon based on type
+    let icon = 'exclamation-triangle';
+    if (type === 'success') icon = 'check-circle';
+    if (type === 'warning') icon = 'exclamation-triangle';
+    if (type === 'info') icon = 'info-circle';
+    
+    // Create dialog
+    const dialog = document.createElement('div');
+    dialog.className = 'btikp-alert';
+    dialog.innerHTML = `
+        <div class="btikp-alert-icon">
+            <i class="bi bi-${icon}"></i>
+        </div>
+        <div class="btikp-alert-title">${title}</div>
+        <div class="btikp-alert-message">${message}</div>
+        <div class="btikp-alert-actions">
+            <button class="btikp-btn btikp-btn-secondary">${cancelText}</button>
+            <button class="btikp-btn btikp-btn-${type}">${confirmText}</button>
+        </div>
+    `;
+    
+    // Add to overlay
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    
+    // Add event listeners
+    const confirmBtn = dialog.querySelector('.btikp-btn-' + type);
+    const cancelBtn = dialog.querySelector('.btikp-btn-secondary');
+    
+    confirmBtn.addEventListener('click', () => {
+        overlay.classList.remove('show');
+        setTimeout(() => {
+            document.body.removeChild(overlay);
+            onConfirm();
+        }, 300);
+    });
+    
+    cancelBtn.addEventListener('click', () => {
+        overlay.classList.remove('show');
+        setTimeout(() => {
+            document.body.removeChild(overlay);
+        }, 300);
+    });
+    
+    // Trigger animation
+    setTimeout(() => overlay.classList.add('show'), 10);
 }
 </script>
 

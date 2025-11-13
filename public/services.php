@@ -1,6 +1,6 @@
 <?php
 /**
- * Services Page - Simplified
+ * Services Page
  * Click service card to directly open service URL
  */
 
@@ -74,6 +74,10 @@ include 'templates/header.php';
             // Determine if service has URL
             $hasUrl = !empty($service['service_url']);
             $targetUrl = $hasUrl ? $service['service_url'] : '#';
+            
+            // **FIXED: Use image_path (with underscore) from database**
+            $hasImage = !empty($service['image_path']);
+            $imageUrl = $hasImage ? uploadUrl($service['image_path']) : '';
             ?>
             
             <article class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 group">
@@ -84,58 +88,66 @@ include 'templates/header.php';
                    class="block">
                     
                     <!-- Service Image -->
-                    <div class="h-48 overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 relative">
-                        <?php if (!empty($service['imagepath'])): ?>
-                        <img src="<?= uploadUrl($service['imagepath']) ?>" 
+                    <div class="h-48 overflow-hidden relative">
+                        <?php if ($hasImage): ?>
+                        <!-- Display uploaded image -->
+                        <img src="<?= $imageUrl ?>" 
                              alt="<?= htmlspecialchars($service['title']) ?>"
                              class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-300"
-                             loading="lazy">
+                             loading="lazy"
+                             onerror="this.parentElement.innerHTML='<div class=\'w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center\'><i class=\'fas fa-concierge-bell text-6xl text-white opacity-50\'></i></div>';">
+                        
+                        <!-- Overlay on image -->
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+                        
                         <?php else: ?>
-                        <div class="w-full h-full flex items-center justify-center">
+                        <!-- Gradient fallback if no image -->
+                        <div class="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                             <i class="fas fa-concierge-bell text-6xl text-white opacity-50"></i>
                         </div>
-                        <?php endif; ?>
-                        
-                        <!-- Overlay -->
                         <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                        <?php endif; ?>
                         
                         <!-- External Link Badge -->
                         <?php if ($hasUrl): ?>
-                        <div class="absolute top-4 right-4 bg-white/90 backdrop-blur-sm text-blue-600 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                        <div class="absolute top-4 right-4 bg-white/90 backdrop-blur-sm text-blue-600 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 shadow-lg">
                             <i class="fas fa-external-link-alt"></i>
                             <span>Buka Layanan</span>
                         </div>
                         <?php endif; ?>
+                        
+                        <!-- Service Title Overlay -->
+                        <div class="absolute bottom-0 left-0 right-0 p-4">
+                            <h3 class="text-white font-bold text-lg drop-shadow-lg line-clamp-2">
+                                <?= htmlspecialchars($service['title']) ?>
+                            </h3>
+                        </div>
                     </div>
                     
                     <!-- Service Content -->
                     <div class="p-6">
-                        <h3 class="text-xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition">
-                            <?= htmlspecialchars($service['title']) ?>
-                            <?php if ($hasUrl): ?>
-                            <i class="fas fa-arrow-right ml-2 text-sm"></i>
-                            <?php endif; ?>
-                        </h3>
-                        
                         <?php if (!empty($service['description'])): ?>
                         <p class="text-gray-600 mb-4 line-clamp-3">
                             <?= htmlspecialchars(truncateText(strip_tags($service['description']), 120)) ?>
                         </p>
                         <?php endif; ?>
                         
-                        <?php if ($hasUrl): ?>
-                        <!-- URL Preview -->
-                        <div class="flex items-center text-sm text-blue-600 font-medium mt-4">
-                            <i class="fas fa-link mr-2"></i>
-                            <span class="truncate"><?= htmlspecialchars(parse_url($service['service_url'], PHP_URL_HOST)) ?></span>
+                        <!-- Footer -->
+                        <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                            <?php if ($hasUrl): ?>
+                            <!-- URL Preview -->
+                            <div class="flex items-center text-sm text-blue-600 font-medium">
+                                <i class="fas fa-link mr-2"></i>
+                                <span class="truncate"><?= htmlspecialchars(parse_url($service['service_url'], PHP_URL_HOST)) ?></span>
+                            </div>
+                            <?php else: ?>
+                            <!-- No URL Available -->
+                            <div class="flex items-center text-sm text-gray-400">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                <span>Link belum tersedia</span>
+                            </div>
+                            <?php endif; ?>
                         </div>
-                        <?php else: ?>
-                        <!-- No URL Available -->
-                        <div class="flex items-center text-sm text-gray-400 mt-4">
-                            <i class="fas fa-info-circle mr-2"></i>
-                            <span>Link belum tersedia</span>
-                        </div>
-                        <?php endif; ?>
                     </div>
                     
                 </a>

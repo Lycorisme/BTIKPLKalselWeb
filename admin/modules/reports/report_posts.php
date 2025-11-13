@@ -1,19 +1,19 @@
 <?php
 /**
- * Posts Report
- * FIXED VERSION - Using post_categories instead of categories
+ * Report: Posts/Artikel
+ * Laporan posts beserta statistik & export PDF
  */
-
 require_once '../../includes/auth_check.php';
 require_once '../../../core/Database.php';
 require_once '../../../core/Helper.php';
+require_once '../../../vendor/autoload.php';
 
 if (!hasRole(['super_admin', 'admin', 'editor'])) {
     setAlert('danger', 'Anda tidak memiliki akses ke halaman ini');
     redirect(ADMIN_URL);
 }
 
-$pageTitle = 'Laporan Post';
+$pageTitle = 'Laporan Posts';
 $db = Database::getInstance()->getConnection();
 
 // Get filters
@@ -24,11 +24,12 @@ $dateFrom = $_GET['date_from'] ?? '';
 $dateTo = $_GET['date_to'] ?? '';
 $exportPdf = $_GET['export_pdf'] ?? '';
 
-// Build query - FIXED: Changed 'categories' to 'post_categories'
+// Build query dengan like & comment count - FIXED: using comments table with polymorphic relation
 $sql = "SELECT p.*, 
         c.name as category_name, 
         u.name as author_name,
-        (SELECT COUNT(*) FROM post_tags pt WHERE pt.post_id = p.id) as tag_count
+        (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as like_count,
+        (SELECT COUNT(*) FROM comments cm WHERE cm.commentable_type = 'post' AND cm.commentable_id = p.id AND cm.status = 'approved') as comment_count
     FROM posts p
     LEFT JOIN post_categories c ON p.category_id = c.id
     LEFT JOIN users u ON p.author_id = u.id
@@ -73,7 +74,8 @@ $stats = [
     'published' => 0,
     'draft' => 0,
     'archived' => 0,
-    'featured' => 0,
+    'total_likes' => 0,
+    'total_comments' => 0,
     'total_views' => 0
 ];
 
@@ -81,11 +83,12 @@ foreach ($posts as $post) {
     if ($post['status'] === 'published') $stats['published']++;
     if ($post['status'] === 'draft') $stats['draft']++;
     if ($post['status'] === 'archived') $stats['archived']++;
-    if ($post['is_featured']) $stats['featured']++;
+    $stats['total_likes'] += $post['like_count'];
+    $stats['total_comments'] += $post['comment_count'];
     $stats['total_views'] += $post['view_count'];
 }
 
-// Get category statistics - FIXED: Changed 'categories' to 'post_categories'
+// Get category statistics
 $categoryStatsStmt = $db->query("
     SELECT c.name, COUNT(p.id) as total
     FROM post_categories c
@@ -95,111 +98,66 @@ $categoryStatsStmt = $db->query("
 ");
 $categoryStats = $categoryStatsStmt->fetchAll();
 
-// Get author statistics
+// Get author statistics - Limit to top 10
 $authorStatsStmt = $db->query("
     SELECT u.name, COUNT(p.id) as total
     FROM users u
     LEFT JOIN posts p ON u.id = p.author_id AND p.deleted_at IS NULL
     GROUP BY u.id, u.name
+    HAVING total > 0
     ORDER BY total DESC
+    LIMIT 10
 ");
 $authorStats = $authorStatsStmt->fetchAll();
 
-// Get data for filters - FIXED: Changed 'categories' to 'post_categories'
-$categoriesStmt = $db->query("SELECT * FROM post_categories ORDER BY name");
+// Get data for filters
+$categoriesStmt = $db->query("SELECT * FROM post_categories WHERE deleted_at IS NULL ORDER BY name");
 $categories = $categoriesStmt->fetchAll();
 
-$authorsStmt = $db->query("SELECT id, name FROM users ORDER BY name");
+$authorsStmt = $db->query("SELECT id, name FROM users WHERE deleted_at IS NULL ORDER BY name");
 $authors = $authorsStmt->fetchAll();
 
 // Export PDF
-if ($exportPdf) {
-    require_once '../../../vendor/tecnickcom/tcpdf/tcpdf.php';
-    
-    $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8');
-    $pdf->SetCreator('BTIKP Kalsel');
-    $pdf->SetAuthor('Admin BTIKP');
-    $pdf->SetTitle('Laporan Post');
-    
-    $pdf->setPrintHeader(false);
-    $pdf->setPrintFooter(false);
-    $pdf->AddPage();
-    
-    $pdf->SetFont('helvetica', 'B', 16);
-    $pdf->Cell(0, 10, 'LAPORAN POST', 0, 1, 'C');
-    $pdf->SetFont('helvetica', '', 10);
-    $pdf->Cell(0, 5, 'Tanggal: ' . date('d/m/Y H:i'), 0, 1, 'C');
-    $pdf->Ln(5);
-    
-    // Statistics
-    $pdf->SetFont('helvetica', 'B', 12);
-    $pdf->Cell(0, 7, 'Statistik Post', 0, 1);
-    $pdf->SetFont('helvetica', '', 10);
-    
-    $html = '<table border="1" cellpadding="4">
-        <tr style="background-color:#f0f0f0;">
-            <th>Total Post</th>
-            <th>Published</th>
-            <th>Draft</th>
-            <th>Archived</th>
-            <th>Featured</th>
-            <th>Total Views</th>
-        </tr>
-        <tr>
-            <td align="center">' . $stats['total'] . '</td>
-            <td align="center">' . $stats['published'] . '</td>
-            <td align="center">' . $stats['draft'] . '</td>
-            <td align="center">' . $stats['archived'] . '</td>
-            <td align="center">' . $stats['featured'] . '</td>
-            <td align="center">' . number_format($stats['total_views']) . '</td>
-        </tr>
-    </table>';
-    
-    $pdf->writeHTML($html, true, false, true, false, '');
-    $pdf->Ln(5);
-    
-    // Posts table
-    $pdf->SetFont('helvetica', 'B', 12);
-    $pdf->Cell(0, 7, 'Daftar Post', 0, 1);
-    $pdf->SetFont('helvetica', '', 8);
-    
-    $html = '<table border="1" cellpadding="3">
-        <thead>
-            <tr style="background-color:#f0f0f0;">
-                <th width="5%">No</th>
-                <th width="30%">Judul</th>
-                <th width="15%">Kategori</th>
-                <th width="15%">Penulis</th>
-                <th width="10%">Status</th>
-                <th width="10%">Views</th>
-                <th width="15%">Tanggal</th>
+if ($exportPdf === '1') {
+    $siteName = getSetting('site_name', 'BTIKP Kalimantan Selatan');
+    $siteTagline = getSetting('site_tagline', '');
+    $contactPhone = getSetting('contact_phone', '');
+    $contactEmail = getSetting('contact_email', '');
+    $contactAddress = getSetting('contact_address', '');
+    $siteLogo = getSetting('site_logo', '');
+
+    $mpdf = new \Mpdf\Mpdf([
+        'mode' => 'utf-8',
+        'format' => 'A4',
+        'orientation' => 'P',
+        'margin_left' => 15,
+        'margin_right' => 15,
+        'margin_top' => 10,
+        'margin_bottom' => 20,
+        'margin_header' => 0,
+        'margin_footer' => 10,
+    ]);
+    $mpdf->SetDefaultFont('cambria');
+
+    $footer = '
+        <table width="100%" style="border-top: 1px solid #000; padding-top: 5px; font-size: 9pt;">
+            <tr>
+                <td width="70%" style="text-align: left;">
+                    ' . htmlspecialchars($siteName) . '
+                </td>
+                <td width="30%" style="text-align: right;">
+                    Halaman {PAGENO} dari {nbpg}
+                </td>
             </tr>
-        </thead>
-        <tbody>';
-    
-    $no = 1;
-    foreach ($posts as $post) {
-        $statusLabel = [
-            'published' => 'Published',
-            'draft' => 'Draft',
-            'archived' => 'Archived'
-        ];
-        
-        $html .= '<tr>
-            <td align="center">' . $no++ . '</td>
-            <td>' . htmlspecialchars($post['title']) . '</td>
-            <td>' . htmlspecialchars($post['category_name'] ?? '-') . '</td>
-            <td>' . htmlspecialchars($post['author_name'] ?? '-') . '</td>
-            <td>' . $statusLabel[$post['status']] . '</td>
-            <td align="center">' . number_format($post['view_count']) . '</td>
-            <td>' . date('d/m/Y', strtotime($post['created_at'])) . '</td>
-        </tr>';
-    }
-    
-    $html .= '</tbody></table>';
-    $pdf->writeHTML($html, true, false, true, false, '');
-    
-    $pdf->Output('laporan_posts_' . date('YmdHis') . '.pdf', 'D');
+        </table>';
+    $mpdf->SetHTMLFooter($footer);
+
+    ob_start();
+    include __DIR__ . '/templates/laporan_posts_pdf.php';
+    $html = ob_get_clean();
+
+    $mpdf->WriteHTML($html);
+    $mpdf->Output('Laporan_Posts_' . date('Ymd_His') . '.pdf', 'I');
     exit;
 }
 
@@ -216,7 +174,8 @@ include '../../includes/header.php';
                 <nav aria-label="breadcrumb" class="breadcrumb-header float-start float-lg-end">
                     <ol class="breadcrumb">
                         <li class="breadcrumb-item"><a href="<?= ADMIN_URL ?>">Dashboard</a></li>
-                        <li class="breadcrumb-item active">Laporan Post</li>
+                        <li class="breadcrumb-item">Laporan</li>
+                        <li class="breadcrumb-item active">Posts</li>
                     </ol>
                 </nav>
             </div>
@@ -225,9 +184,9 @@ include '../../includes/header.php';
 
     <section class="section">
         <!-- Filter Card -->
-        <div class="card">
+        <div class="card mb-3">
             <div class="card-header">
-                <h5 class="card-title mb-0">Filter Laporan</h5>
+                <h5 class="card-title mb-0"><i class="bi bi-funnel"></i> Filter Laporan</h5>
             </div>
             <div class="card-body">
                 <form method="GET" class="row g-3">
@@ -271,14 +230,14 @@ include '../../includes/header.php';
                         <input type="date" name="date_to" class="form-control" value="<?= $dateTo ?>">
                     </div>
                     <div class="col-12">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-search"></i> Filter
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="bi bi-search"></i> Tampilkan
                         </button>
-                        <a href="report_posts.php" class="btn btn-secondary">
-                            <i class="bi bi-x-circle"></i> Reset
+                        <a href="report_posts.php" class="btn btn-secondary me-2">
+                            <i class="bi bi-arrow-counterclockwise"></i> Reset
                         </a>
-                        <a href="?export_pdf=1<?= $categoryId ? '&category_id=' . $categoryId : '' ?><?= $status ? '&status=' . $status : '' ?><?= $authorId ? '&author_id=' . $authorId : '' ?><?= $dateFrom ? '&date_from=' . $dateFrom : '' ?><?= $dateTo ? '&date_to=' . $dateTo : '' ?>" 
-                           class="btn btn-danger">
+                        <a href="?export_pdf=1<?= $categoryId ? '&category_id='.$categoryId : '' ?><?= $status ? '&status='.$status : '' ?><?= $authorId ? '&author_id='.$authorId : '' ?><?= $dateFrom ? '&date_from='.$dateFrom : '' ?><?= $dateTo ? '&date_to='.$dateTo : '' ?>"
+                           class="btn btn-danger" target="_blank">
                             <i class="bi bi-file-pdf"></i> Export PDF
                         </a>
                     </div>
@@ -287,90 +246,94 @@ include '../../includes/header.php';
         </div>
 
         <!-- Statistics Cards -->
-        <div class="row">
+        <div class="row mb-3">
             <div class="col-md-2">
                 <div class="card">
-                    <div class="card-body">
-                        <h6 class="text-muted">Total Post</h6>
-                        <h3 class="mb-0"><?= number_format($stats['total']) ?></h3>
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">Total Post</h6>
+                        <h3 class="mb-0"><?= formatNumber($stats['total']) ?></h3>
                     </div>
                 </div>
             </div>
             <div class="col-md-2">
                 <div class="card">
-                    <div class="card-body">
-                        <h6 class="text-muted">Published</h6>
-                        <h3 class="mb-0 text-success"><?= number_format($stats['published']) ?></h3>
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">Published</h6>
+                        <h3 class="mb-0 text-success"><?= formatNumber($stats['published']) ?></h3>
                     </div>
                 </div>
             </div>
             <div class="col-md-2">
                 <div class="card">
-                    <div class="card-body">
-                        <h6 class="text-muted">Draft</h6>
-                        <h3 class="mb-0 text-warning"><?= number_format($stats['draft']) ?></h3>
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">Draft</h6>
+                        <h3 class="mb-0 text-warning"><?= formatNumber($stats['draft']) ?></h3>
                     </div>
                 </div>
             </div>
             <div class="col-md-2">
                 <div class="card">
-                    <div class="card-body">
-                        <h6 class="text-muted">Archived</h6>
-                        <h3 class="mb-0 text-secondary"><?= number_format($stats['archived']) ?></h3>
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">Total Likes</h6>
+                        <h3 class="mb-0 text-danger"><?= formatNumber($stats['total_likes']) ?></h3>
                     </div>
                 </div>
             </div>
             <div class="col-md-2">
                 <div class="card">
-                    <div class="card-body">
-                        <h6 class="text-muted">Featured</h6>
-                        <h3 class="mb-0 text-primary"><?= number_format($stats['featured']) ?></h3>
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">Total Komentar</h6>
+                        <h3 class="mb-0 text-info"><?= formatNumber($stats['total_comments']) ?></h3>
                     </div>
                 </div>
             </div>
             <div class="col-md-2">
                 <div class="card">
-                    <div class="card-body">
-                        <h6 class="text-muted">Total Views</h6>
-                        <h3 class="mb-0"><?= number_format($stats['total_views']) ?></h3>
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2">Total Views</h6>
+                        <h3 class="mb-0 text-primary"><?= formatNumber($stats['total_views']) ?></h3>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Posts Table -->
-        <div class="card">
+        <div class="card mb-3">
             <div class="card-header">
-                <h5 class="card-title mb-0">Daftar Post</h5>
+                <h5 class="card-title mb-0">Daftar Post (<?= formatNumber(count($posts)) ?> data)</h5>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover">
+                    <table class="table table-sm table-hover table-striped">
                         <thead>
                             <tr>
-                                <th>No</th>
-                                <th>Judul</th>
-                                <th>Kategori</th>
-                                <th>Penulis</th>
-                                <th>Status</th>
-                                <th>Featured</th>
-                                <th>Views</th>
-                                <th>Tags</th>
-                                <th>Tanggal</th>
+                                <th style="width: 4%;">No</th>
+                                <th style="width: 28%;">Judul</th>
+                                <th style="width: 10%;">Tanggal Post</th>
+                                <th style="width: 12%;">Kategori</th>
+                                <th style="width: 12%;">Penulis</th>
+                                <th style="width: 9%;">Status</th>
+                                <th style="width: 7%;">Likes</th>
+                                <th style="width: 8%;">Komentar</th>
+                                <th style="width: 7%;">Views</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if (empty($posts)): ?>
                                 <tr>
-                                    <td colspan="9" class="text-center">Tidak ada data</td>
+                                    <td colspan="9" class="text-center text-muted py-4">Tidak ada data post</td>
                                 </tr>
                             <?php else: ?>
                                 <?php $no = 1; foreach ($posts as $post): ?>
                                     <tr>
                                         <td><?= $no++ ?></td>
                                         <td>
-                                            <strong><?= htmlspecialchars($post['title']) ?></strong>
+                                            <?= htmlspecialchars($post['title']) ?>
+                                            <?php if ($post['is_featured']): ?>
+                                                <i class="bi bi-star-fill text-warning ms-1" title="Featured"></i>
+                                            <?php endif; ?>
                                         </td>
+                                        <td><?= formatTanggal($post['created_at'], 'd/m/Y') ?></td>
                                         <td><?= htmlspecialchars($post['category_name'] ?? '-') ?></td>
                                         <td><?= htmlspecialchars($post['author_name'] ?? '-') ?></td>
                                         <td>
@@ -382,16 +345,21 @@ include '../../includes/header.php';
                                                 <span class="badge bg-secondary">Archived</span>
                                             <?php endif; ?>
                                         </td>
-                                        <td>
-                                            <?php if ($post['is_featured']): ?>
-                                                <i class="bi bi-star-fill text-warning"></i>
-                                            <?php else: ?>
-                                                <i class="bi bi-star text-muted"></i>
-                                            <?php endif; ?>
+                                        <td class="text-center">
+                                            <span class="badge bg-danger">
+                                                <i class="bi bi-heart-fill"></i> <?= formatNumber($post['like_count']) ?>
+                                            </span>
                                         </td>
-                                        <td><?= number_format($post['view_count']) ?></td>
-                                        <td><?= $post['tag_count'] ?> tags</td>
-                                        <td><?= date('d/m/Y', strtotime($post['created_at'])) ?></td>
+                                        <td class="text-center">
+                                            <span class="badge bg-info">
+                                                <i class="bi bi-chat-dots-fill"></i> <?= formatNumber($post['comment_count']) ?>
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-primary">
+                                                <i class="bi bi-eye-fill"></i> <?= formatNumber($post['view_count']) ?>
+                                            </span>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php endif; ?>
@@ -409,47 +377,85 @@ include '../../includes/header.php';
                         <h5 class="card-title mb-0">Post per Kategori</h5>
                     </div>
                     <div class="card-body">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Kategori</th>
-                                    <th class="text-end">Jumlah</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($categoryStats as $cat): ?>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
                                     <tr>
-                                        <td><?= htmlspecialchars($cat['name']) ?></td>
-                                        <td class="text-end"><strong><?= $cat['total'] ?></strong></td>
+                                        <th>Kategori</th>
+                                        <th class="text-end" style="width: 100px;">Jumlah</th>
+                                        <th class="text-end" style="width: 100px;">Persentase</th>
                                     </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    <?php 
+                                    $totalPosts = array_sum(array_column($categoryStats, 'total'));
+                                    foreach ($categoryStats as $cat): 
+                                        $percentage = $totalPosts > 0 ? ($cat['total'] / $totalPosts * 100) : 0;
+                                    ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($cat['name']) ?></td>
+                                            <td class="text-end"><strong><?= formatNumber($cat['total']) ?></strong></td>
+                                            <td class="text-end"><?= number_format($percentage, 1) ?>%</td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                                <?php if ($totalPosts > 0): ?>
+                                <tfoot>
+                                    <tr class="fw-bold">
+                                        <td>Total</td>
+                                        <td class="text-end"><?= formatNumber($totalPosts) ?></td>
+                                        <td class="text-end">100%</td>
+                                    </tr>
+                                </tfoot>
+                                <?php endif; ?>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="card-title mb-0">Post per Penulis</h5>
+                        <h5 class="card-title mb-0">Top 10 Penulis Teraktif</h5>
                     </div>
                     <div class="card-body">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Penulis</th>
-                                    <th class="text-end">Jumlah</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($authorStats as $author): ?>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
                                     <tr>
-                                        <td><?= htmlspecialchars($author['name']) ?></td>
-                                        <td class="text-end"><strong><?= $author['total'] ?></strong></td>
+                                        <th style="width: 50px;">Rank</th>
+                                        <th>Penulis</th>
+                                        <th class="text-end" style="width: 100px;">Jumlah Post</th>
                                     </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    <?php if (empty($authorStats)): ?>
+                                        <tr>
+                                            <td colspan="3" class="text-center text-muted">Tidak ada data</td>
+                                        </tr>
+                                    <?php else: ?>
+                                        <?php $rank = 1; foreach ($authorStats as $author): ?>
+                                            <tr>
+                                                <td class="text-center">
+                                                    <?php if ($rank == 1): ?>
+                                                        <span class="badge bg-warning">🥇</span>
+                                                    <?php elseif ($rank == 2): ?>
+                                                        <span class="badge bg-secondary">🥈</span>
+                                                    <?php elseif ($rank == 3): ?>
+                                                        <span class="badge bg-info">🥉</span>
+                                                    <?php else: ?>
+                                                        <?= $rank ?>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td><?= htmlspecialchars($author['name']) ?></td>
+                                                <td class="text-end"><strong><?= formatNumber($author['total']) ?></strong></td>
+                                            </tr>
+                                            <?php $rank++; ?>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>

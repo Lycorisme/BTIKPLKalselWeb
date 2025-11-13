@@ -38,6 +38,9 @@ if ($message['status'] === 'unread') {
     $updateStmt = $db->prepare("UPDATE contact_messages SET status = 'read' WHERE id = ?");
     $updateStmt->execute([$messageId]);
     $message['status'] = 'read';
+    
+    // Log activity
+    logActivity('UPDATE', "Membaca pesan kontak #{$messageId}", 'contact_messages', $messageId);
 }
 
 include '../../includes/header.php';
@@ -67,7 +70,6 @@ include '../../includes/header.php';
             <div class="col-12">
                 <!-- Message Header Card -->
                 <div class="card shadow-sm mb-4">
-                    <!-- [FIXED] Removed 'bg-white' to allow dark mode -->
                     <div class="card-header border-bottom">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -86,7 +88,10 @@ include '../../includes/header.php';
                                 </a>
                                 <a href="messages_delete.php?id=<?= $message['id'] ?>" 
                                    class="btn btn-sm btn-danger"
-                                   onclick="return confirm('Yakin ingin menghapus pesan ini?')">
+                                   data-confirm-delete
+                                   data-title="Hapus Pesan"
+                                   data-message="Apakah Anda yakin ingin menghapus pesan ini? Tindakan ini tidak dapat dibatalkan."
+                                   data-loading-text="Menghapus...">
                                     <i class="bi bi-trash"></i>
                                     <span class="d-none d-md-inline ms-1">Hapus</span>
                                 </a>
@@ -132,7 +137,6 @@ include '../../includes/header.php';
                         </div>
                         
                         <!-- Message Content -->
-                        <!-- [FIXED] Removed 'bg-light' to allow dark mode background -->
                         <div class="message-content p-3 rounded">
                             <?= nl2br(htmlspecialchars($message['message'])) ?>
                         </div>
@@ -143,7 +147,6 @@ include '../../includes/header.php';
             <!-- Sidebar Info -->
             <div class="col-lg-4">
                 <div class="card shadow-sm mb-4">
-                    <!-- [FIXED] Removed 'bg-white' -->
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i class="bi bi-info-circle me-2"></i>Informasi Pesan
@@ -184,7 +187,6 @@ include '../../includes/header.php';
                             <hr>
                             <div>
                                 <h6 class="text-muted small mb-2">User Agent</h6>
-                                <!-- [FIXED] Removed 'bg-light' -->
                                 <div class="small text-muted p-2 rounded" style="word-break: break-all; font-size: 0.75rem;">
                                     <?= htmlspecialchars($message['user_agent']) ?>
                                 </div>
@@ -195,7 +197,6 @@ include '../../includes/header.php';
                 
                 <!-- Quick Actions -->
                 <div class="card shadow-sm">
-                    <!-- [FIXED] Removed 'bg-white' -->
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i class="bi bi-lightning me-2"></i>Aksi Cepat

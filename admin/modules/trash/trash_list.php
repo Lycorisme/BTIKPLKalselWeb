@@ -1,9 +1,8 @@
 <?php
 /**
  * Trash/Recycle Bin - List All Deleted Items
- * Layout di-refaktor agar konsisten dengan files_list.php (Filter Bar & Pagination)
- * DITAMBAH: Notifikasi Kustom untuk Restore & Delete
- * DIHAPUS: Card ringkasan
+ * Layout konsisten dengan files_list.php (Filter Bar & Pagination)
+ * ENHANCED: Added Tags support for soft delete
  */
 
 require_once '../../includes/auth_check.php';
@@ -47,8 +46,8 @@ function columnExists($db, $table, $column) {
 // =================================================================
 $dropdownCounts = [
     'posts' => 0, 'services' => 0, 'users' => 0, 'pages' => 0, 
-    'categories' => 0, 'files' => 0, 'albums' => 0, 'photos' => 0, 
-    'banners' => 0, 'contacts' => 0,
+    'categories' => 0, 'tags' => 0, 'files' => 0, 'albums' => 0, 
+    'photos' => 0, 'banners' => 0, 'contacts' => 0,
 ];
 $totalDropdownItems = 0;
 
@@ -67,7 +66,8 @@ $dropdownCounts['posts'] = getTrashCount($db, 'posts');
 $dropdownCounts['services'] = getTrashCount($db, 'services');
 $dropdownCounts['users'] = getTrashCount($db, 'users');
 $dropdownCounts['pages'] = getTrashCount($db, 'pages'); 
-$dropdownCounts['categories'] = getTrashCount($db, 'post_categories'); // Menyesuaikan nama tabel
+$dropdownCounts['categories'] = getTrashCount($db, 'post_categories');
+$dropdownCounts['tags'] = getTrashCount($db, 'tags'); // ADDED: Tags count
 $dropdownCounts['files'] = getTrashCount($db, 'downloadable_files');
 $dropdownCounts['albums'] = getTrashCount($db, 'gallery_albums');
 $dropdownCounts['photos'] = getTrashCount($db, 'gallery_photos');
@@ -77,7 +77,6 @@ $dropdownCounts['contacts'] = getTrashCount($db, 'contact_messages');
 foreach ($dropdownCounts as $count) {
     $totalDropdownItems += $count;
 }
-
 
 // =================================================================
 // STEP 2 - Kumpulkan item yang DI-FILTER untuk tampilan utama
@@ -130,7 +129,7 @@ if ($type === '' || $type === 'pages') {
 
 // 5. Categories
 if ($type === '' || $type === 'categories') {
-    if (columnExists($db, 'post_categories', 'deleted_at')) { // Menyesuaikan nama tabel
+    if (columnExists($db, 'post_categories', 'deleted_at')) {
         $sql = "SELECT id, name, 'category' as type, 'Kategori' as type_label, deleted_at, created_at FROM post_categories WHERE deleted_at IS NOT NULL";
         if ($search) $sql .= " AND (name LIKE ?)";
         $stmt = $db->prepare($sql);
@@ -139,7 +138,18 @@ if ($type === '' || $type === 'categories') {
     }
 }
 
-// 6. Downloadable Files
+// 6. Tags (ADDED)
+if ($type === '' || $type === 'tags') {
+    if (columnExists($db, 'tags', 'deleted_at')) {
+        $sql = "SELECT id, name, 'tag' as type, 'Tag' as type_label, deleted_at, created_at FROM tags WHERE deleted_at IS NOT NULL";
+        if ($search) $sql .= " AND (name LIKE ? OR slug LIKE ?)";
+        $stmt = $db->prepare($sql);
+        $search ? $stmt->execute(["%{$search}%", "%{$search}%"]) : $stmt->execute();
+        $deletedItems = array_merge($deletedItems, $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+}
+
+// 7. Downloadable Files
 if ($type === '' || $type === 'files') {
     if (columnExists($db, 'downloadable_files', 'deleted_at')) {
         $sql = "SELECT id, title as name, 'file' as type, 'File Download' as type_label, deleted_at, created_at FROM downloadable_files WHERE deleted_at IS NOT NULL";
@@ -150,7 +160,7 @@ if ($type === '' || $type === 'files') {
     }
 }
 
-// 7. Gallery Albums
+// 8. Gallery Albums
 if ($type === '' || $type === 'albums') {
     if (columnExists($db, 'gallery_albums', 'deleted_at')) {
         $sql = "SELECT id, name, 'album' as type, 'Album Gallery' as type_label, deleted_at, created_at FROM gallery_albums WHERE deleted_at IS NOT NULL";
@@ -161,7 +171,7 @@ if ($type === '' || $type === 'albums') {
     }
 }
 
-// 8. Gallery Photos
+// 9. Gallery Photos
 if ($type === '' || $type === 'photos' || $type === 'albums') {
     if (columnExists($db, 'gallery_photos', 'deleted_at')) {
         $sql = "SELECT p.id, COALESCE(p.title, CONCAT('Photo #', p.id)) as name, 'photo' as type, 'Foto Gallery' as type_label, p.deleted_at, p.created_at, a.name as album_name
@@ -175,7 +185,7 @@ if ($type === '' || $type === 'photos' || $type === 'albums') {
     }
 }
 
-// 9. Banners
+// 10. Banners
 if ($type === '' || $type === 'banners') {
     if (columnExists($db, 'banners', 'deleted_at')) {
         $sql = "SELECT id, title as name, 'banner' as type, 'Banner' as type_label, deleted_at, created_at FROM banners WHERE deleted_at IS NOT NULL";
@@ -186,7 +196,7 @@ if ($type === '' || $type === 'banners') {
     }
 }
 
-// 10. Contact Messages
+// 11. Contact Messages
 if ($type === '' || $type === 'contacts') {
     if (columnExists($db, 'contact_messages', 'deleted_at')) {
         $sql = "SELECT id, subject as name, 'contact' as type, 'Pesan Kontak' as type_label, deleted_at, created_at FROM contact_messages WHERE deleted_at IS NOT NULL";
@@ -205,12 +215,9 @@ usort($deletedItems, function($a, $b) {
 // =================================================================
 // STEP 3 - Paginate
 // =================================================================
-
 $totalItems = count($deletedItems);
 $totalPages = max(1, ceil($totalItems / $perPage));
 $paginatedItems = array_slice($deletedItems, $offset, $perPage);
-
-// Logika untuk $summaryCardCounts Dihapus
 
 include '../../includes/header.php';
 ?>
@@ -219,7 +226,7 @@ include '../../includes/header.php';
     <div class="page-title">
         <div class="row align-items-center">
             <div class="col-12 col-md-6 mb-3 mb-md-0">
-                <h3><i class=""></i> <?= $pageTitle ?></h3>
+                <h3><?= $pageTitle ?></h3>
             </div>
             <div class="col-12 col-md-6">
                 <nav aria-label="breadcrumb" class="breadcrumb-header float-md-end">
@@ -233,11 +240,12 @@ include '../../includes/header.php';
     </div>
 
     <section class="section">
-        
         <div class="card shadow-sm">
             <div class="card-header">
-                <div class="row align-items-center gy-3"> <div class="col-12 col-md-4"> <div class="dropdown">
-                            <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <div class="row align-items-center gy-3">
+                    <div class="col-12 col-md-4">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle w-100 text-break" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="bi bi-funnel me-2"></i>
                                 <span id="filterLabel">
                                     <?php 
@@ -247,6 +255,7 @@ include '../../includes/header.php';
                                     else if ($type === 'users') echo 'Users';
                                     else if ($type === 'pages') echo 'Halaman'; 
                                     else if ($type === 'categories') echo 'Kategori';
+                                    else if ($type === 'tags') echo 'Tag'; // ADDED
                                     else if ($type === 'files') echo 'Files';
                                     else if ($type === 'albums' || $type === 'photos') echo 'Gallery';
                                     else if ($type === 'banners') echo 'Banner';
@@ -292,6 +301,13 @@ include '../../includes/header.php';
                                         <span class="badge bg-secondary float-end"><?= $dropdownCounts['categories'] ?></span>
                                     </a>
                                 </li>
+                                <!-- ADDED: Tags Menu -->
+                                <li>
+                                    <a class="dropdown-item <?= $type === 'tags' ? 'active' : '' ?>" href="?type=tags">
+                                        <i class="bi bi-hash me-2"></i> Tag
+                                        <span class="badge bg-primary float-end"><?= $dropdownCounts['tags'] ?></span>
+                                    </a>
+                                </li>
                                 <li>
                                     <a class="dropdown-item <?= $type === 'files' ? 'active' : '' ?>" href="?type=files">
                                         <i class="bi bi-download me-2"></i> Files
@@ -307,19 +323,20 @@ include '../../includes/header.php';
                                 <li>
                                     <a class="dropdown-item <?= $type === 'banners' ? 'active' : '' ?>" href="?type=banners">
                                         <i class="bi bi-card-image me-2"></i> Banner
-                                        <span class="badge bg-primary float-end"><?= $dropdownCounts['banners'] ?? 0 ?></span>
+                                        <span class="badge bg-primary float-end"><?= $dropdownCounts['banners'] ?></span>
                                     </a>
                                 </li>
                                 <li>
                                     <a class="dropdown-item <?= $type === 'contacts' ? 'active' : '' ?>" href="?type=contacts">
                                         <i class="bi bi-envelope me-2"></i> Pesan Kontak
-                                        <span class="badge bg-secondary float-end"><?= $dropdownCounts['contacts'] ?? 0 ?></span>
+                                        <span class="badge bg-secondary float-end"><?= $dropdownCounts['contacts'] ?></span>
                                     </a>
                                 </li>
                             </ul>
                         </div>
                     </div>
-                    <div class="col-12 col-md-8"> <div class="d-flex justify-content-start justify-content-md-end">
+                    <div class="col-12 col-md-8">
+                        <div class="d-flex justify-content-start justify-content-md-end">
                             <?php if ($totalItems > 0): ?>
                                 <a href="trash_empty.php<?= $type ? '?type=' . $type : '' ?>" 
                                    class="btn btn-danger btn-sm"
@@ -336,41 +353,45 @@ include '../../includes/header.php';
             </div>
             
             <div class="card-body">
-                <form method="GET" class="row g-3 mb-4">
+                <form method="GET" class="row g-2 align-items-center mb-3">
                     <?php if ($type): ?>
                         <input type="hidden" name="type" value="<?= htmlspecialchars($type) ?>">
                     <?php endif; ?>
 
                     <div class="col-12 col-md-6">
-                        <label class="form-label">Cari Item</label>
                         <input type="text" 
-                               class="form-control form-control-sm" 
+                               class="form-control" 
                                name="search" 
                                placeholder="Cari item..." 
                                value="<?= htmlspecialchars($search) ?>">
                     </div>
 
                     <div class="col-6 col-md-3">
-                        <label class="form-label">Per Page</label>
-                        <select name="per_page" class="form-select form-select-sm">
+                        <select name="per_page" class="form-select">
                             <?php foreach ($perPageOptions as $n): ?>
                                 <option value="<?= $n ?>"<?= $perPage == $n ? ' selected' : '' ?>><?= $n ?>/hlm</option>
                             <?php endforeach; ?>
                         </select>
                     </div>
 
-                    <div class="col-6 col-md-3 d-flex align-items-end gap-2">
-                        <button class="btn btn-primary btn-sm flex-grow-1" type="submit">
-                            <i class="bi bi-search"></i> Cari
+                    <div class="col-6 col-md-3">
+                        <button class="btn btn-outline-primary w-100" type="submit">
+                            <i class="bi bi-search"></i>
+                            <span class="d-none d-md-inline">Filter</span>
                         </button>
-                        
-                        <?php if ($search || (isset($_GET['per_page']) && $_GET['per_page'] != getSetting('items_per_page', 20))): ?>
-                            <a href="?<?= $type ? 'type=' . urlencode($type) : '' ?>" class="btn btn-secondary btn-sm" title="Reset">
-                                <i class="bi bi-x-circle"></i>
-                            </a>
-                        <?php endif; ?>
                     </div>
                 </form>
+
+                <?php 
+                $isFiltered = $search || (isset($_GET['per_page']) && $_GET['per_page'] != getSetting('items_per_page', 20));
+                if ($isFiltered): 
+                ?>
+                    <div class="mb-3">
+                        <a href="?<?= $type ? 'type=' . urlencode($type) : '' ?>" class="btn btn-sm btn-secondary" title="Reset">
+                            <i class="bi bi-x-circle"></i> Reset Filter
+                        </a>
+                    </div>
+                <?php endif; ?>
 
                 <?php if (empty($paginatedItems)): ?>
                     <div class="text-center py-5">
@@ -386,6 +407,7 @@ include '../../includes/header.php';
                         </h5>
                     </div>
                 <?php else: ?>
+                    <!-- Desktop Table View -->
                     <div class="table-responsive d-none d-md-block">
                         <table class="table table-hover align-middle">
                             <thead>
@@ -412,6 +434,7 @@ include '../../includes/header.php';
                                                 'user' => '<span class="badge bg-info"><i class="bi bi-people me-1"></i> User</span>',
                                                 'page' => '<span class="badge bg-info"><i class="bi bi-file-earmark-text me-1"></i> Halaman</span>',
                                                 'category' => '<span class="badge bg-secondary"><i class="bi bi-tags me-1"></i> Kategori</span>',
+                                                'tag' => '<span class="badge bg-primary"><i class="bi bi-hash me-1"></i> Tag</span>', // ADDED
                                                 'file' => '<span class="badge bg-warning text-dark"><i class="bi bi-download me-1"></i> File</span>',
                                                 'album' => '<span class="badge bg-secondary"><i class="bi bi-images me-1"></i> Album</span>',
                                                 'photo' => '<span class="badge bg-secondary"><i class="bi bi-image me-1"></i> Photo</span>',
@@ -423,13 +446,13 @@ include '../../includes/header.php';
                                         </td>
                                         <td>
                                             <div>
-                                                <strong><?= htmlspecialchars($item['name']) ?></strong>
+                                                <strong class="text-break"><?= htmlspecialchars($item['name']) ?></strong>
                                                 <?php if (isset($item['album_name']) && $item['album_name']): ?>
-                                                    <br><small class="text-muted">Album: <?= htmlspecialchars($item['album_name']) ?></small>
+                                                    <br><small class="text-muted text-break"><?= htmlspecialchars($item['album_name']) ?></small>
                                                 <?php endif; ?>
                                             </div>
                                         </td>
-                                        <td>
+                                        <td class="text-nowrap">
                                             <small><?= formatTanggal($item['deleted_at'], 'd M Y') ?></small>
                                             <br><small class="text-muted"><?= formatTanggal($item['deleted_at'], 'H:i') ?></small>
                                         </td>
@@ -467,6 +490,7 @@ include '../../includes/header.php';
                         </table>
                     </div>
 
+                    <!-- Mobile Card View -->
                     <div class="d-md-none">
                         <?php foreach ($paginatedItems as $item): ?>
                             <?php
@@ -484,6 +508,7 @@ include '../../includes/header.php';
                                                 'user' => '<span class="badge bg-info"><i class="bi bi-people me-1"></i> User</span>',
                                                 'page' => '<span class="badge bg-info"><i class="bi bi-file-earmark-text me-1"></i> Halaman</span>',
                                                 'category' => '<span class="badge bg-secondary"><i class="bi bi-tags me-1"></i> Kategori</span>',
+                                                'tag' => '<span class="badge bg-primary"><i class="bi bi-hash me-1"></i> Tag</span>', // ADDED
                                                 'file' => '<span class="badge bg-warning text-dark"><i class="bi bi-download me-1"></i> File</span>',
                                                 'album' => '<span class="badge bg-secondary"><i class="bi bi-images me-1"></i> Album</span>',
                                                 'photo' => '<span class="badge bg-secondary"><i class="bi bi-image me-1"></i> Photo</span>',
@@ -497,9 +522,9 @@ include '../../includes/header.php';
                                             <?= $daysInTrash ?> hari
                                         </span>
                                     </div>
-                                    <h6 class="mb-1"><?= htmlspecialchars($item['name']) ?></h6>
+                                    <h6 class="mb-1 text-break"><?= htmlspecialchars($item['name']) ?></h6>
                                     <?php if (isset($item['album_name']) && $item['album_name']): ?>
-                                        <small class="text-muted d-block mb-2">Album: <?= htmlspecialchars($item['album_name']) ?></small>
+                                        <small class="text-muted d-block mb-2 text-break">Album: <?= htmlspecialchars($item['album_name']) ?></small>
                                     <?php endif; ?>
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <small class="text-muted">
@@ -530,6 +555,7 @@ include '../../includes/header.php';
                         <?php endforeach; ?>
                     </div>
 
+                    <!-- Pagination -->
                     <?php if ($totalItems > 0): ?>
                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
                             <div>
@@ -540,15 +566,12 @@ include '../../includes/header.php';
                             
                             <nav aria-label="Page navigation">
                                 <ul class="pagination mb-0">
-                                    
-                                    <?php // Tombol Previous ?>
                                     <li class="page-item<?= $page <= 1 ? ' disabled' : '' ?>">
                                         <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>">
                                             <i class="bi bi-chevron-left"></i>
                                         </a>
                                     </li>
                                     
-                                    <?php // Nomor Halaman dengan Logika "..." ?>
                                     <?php
                                     $from = max(1, $page - 2);
                                     $to = min($totalPages, $page + 2);
@@ -576,13 +599,11 @@ include '../../includes/header.php';
                                     }
                                     ?>
                                     
-                                    <?php // Tombol Next ?>
                                     <li class="page-item<?= $page >= $totalPages ? ' disabled' : '' ?>">
                                         <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>">
                                             <i class="bi bi-chevron-right"></i>
                                         </a>
                                     </li>
-                                    
                                 </ul>
                             </nav>
                         </div>
@@ -595,7 +616,7 @@ include '../../includes/header.php';
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Handler khusus untuk tombol RESTORE
+    // Handler untuk tombol RESTORE
     document.querySelectorAll('[data-confirm-restore]').forEach(function(button) {
         button.addEventListener('click', function(e) {
             e.preventDefault();
@@ -604,7 +625,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const itemName = this.dataset.itemName || 'item ini';
 
             notify.confirm({
-                type: 'info', // Menggunakan 'info' atau 'success' untuk restore
+                type: 'info',
                 title: 'Restore Item?',
                 message: `Anda yakin ingin me-restore item "${itemName}"? Item akan dikembalikan ke modul asalnya.`,
                 confirmText: 'Ya, Restore',

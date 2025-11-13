@@ -45,7 +45,7 @@ class Validator {
         return $this;
     }
 
-    /** Min length */
+    /** Min length (original method) */
     public function minLength($field, $min, $label = null) {
         $label = $label ?: ucfirst($field);
         if (isset($this->data[$field]) && strlen($this->data[$field]) < $min) {
@@ -54,13 +54,23 @@ class Validator {
         return $this;
     }
 
-    /** Max length */
+    /** Min (alias untuk minLength - untuk kompatibilitas) */
+    public function min($field, $min, $label = null) {
+        return $this->minLength($field, $min, $label);
+    }
+
+    /** Max length (original method) */
     public function maxLength($field, $max, $label = null) {
         $label = $label ?: ucfirst($field);
         if (isset($this->data[$field]) && strlen($this->data[$field]) > $max) {
             $this->errors[$field] = "{$label} maksimal {$max} karakter";
         }
         return $this;
+    }
+
+    /** Max (alias untuk maxLength - untuk kompatibilitas) */
+    public function max($field, $max, $label = null) {
+        return $this->maxLength($field, $max, $label);
     }
 
     /** Numeric */

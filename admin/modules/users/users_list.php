@@ -47,8 +47,7 @@ $roleOptions = [
 $activeOptions = [
     '' => 'Semua Status',
     '1' => 'Aktif',
-    '0' => 'Tidak Aktif',
-    '3' => 'Baru (Pending)'
+    '0' => 'Tidak Aktif'
 ];
 $perPageOptions = [10,25,50,100];
 $deletedOptions = [
@@ -58,6 +57,84 @@ $deletedOptions = [
 
 include '../../includes/header.php';
 ?>
+
+<style>
+/* Custom styling untuk card statistik yang lebih responsif */
+.stats-card-wrapper {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 576px) {
+    .stats-card-wrapper {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+    
+    .stats-card-compact {
+        padding: 0.75rem !important;
+    }
+    
+    .stats-icon {
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 1.2rem !important;
+    }
+    
+    .stats-card-compact h6.text-muted {
+        font-size: 0.7rem;
+        margin-bottom: 0.25rem !important;
+    }
+    
+    .stats-card-compact h6:last-child {
+        font-size: 1.1rem;
+    }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+    .stats-card-wrapper {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 769px) {
+    .stats-card-wrapper {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* Perbaikan untuk filter form di mobile */
+@media (max-width: 576px) {
+    .filter-form .col-12.col-sm-3,
+    .filter-form .col-6.col-sm-2,
+    .filter-form .col-12.col-sm-1 {
+        margin-bottom: 0.5rem;
+    }
+    
+    .filter-form .btn {
+        font-size: 0.875rem;
+    }
+}
+
+/* Perbaikan tabel responsif */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.85rem;
+    }
+    
+    .avatar.avatar-md {
+        width: 35px !important;
+        height: 35px !important;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.4rem;
+        font-size: 0.75rem;
+    }
+}
+</style>
 
 <div class="page-heading">
     <div class="page-title">
@@ -77,34 +154,46 @@ include '../../includes/header.php';
         </div>
     </div>
 
-    <section class="row mb-4">
-        <div class="col-md-3 col-6 mb-2">
-            <div class="card"><div class="card-body text-center">
-                <div class="stats-icon purple mb-2 mx-auto"><i class="bi bi-shield-check"></i></div>
+    <!-- Stats Cards dengan Grid Responsif -->
+    <section class="stats-card-wrapper">
+        <div class="card">
+            <div class="card-body text-center stats-card-compact">
+                <div class="stats-icon purple mb-2 mx-auto">
+                    <i class="bi bi-shield-check"></i>
+                </div>
                 <h6 class="text-muted mb-1">Super Admin</h6>
-                <h6 class="mb-0"><?= $roleCounts['super_admin'] ?></h6>
-            </div></div>
+                <h6 class="mb-0 fw-bold"><?= $roleCounts['super_admin'] ?></h6>
+            </div>
         </div>
-        <div class="col-md-3 col-6 mb-2">
-            <div class="card"><div class="card-body text-center">
-                <div class="stats-icon blue mb-2 mx-auto"><i class="bi bi-person-badge"></i></div>
+        
+        <div class="card">
+            <div class="card-body text-center stats-card-compact">
+                <div class="stats-icon blue mb-2 mx-auto">
+                    <i class="bi bi-person-badge"></i>
+                </div>
                 <h6 class="text-muted mb-1">Admin</h6>
-                <h6 class="mb-0"><?= $roleCounts['admin'] ?></h6>
-            </div></div>
+                <h6 class="mb-0 fw-bold"><?= $roleCounts['admin'] ?></h6>
+            </div>
         </div>
-        <div class="col-md-3 col-6 mb-2">
-            <div class="card"><div class="card-body text-center">
-                <div class="stats-icon green mb-2 mx-auto"><i class="bi bi-pencil-square"></i></div>
+        
+        <div class="card">
+            <div class="card-body text-center stats-card-compact">
+                <div class="stats-icon green mb-2 mx-auto">
+                    <i class="bi bi-pencil-square"></i>
+                </div>
                 <h6 class="text-muted mb-1">Editor</h6>
-                <h6 class="mb-0"><?= $roleCounts['editor'] ?></h6>
-            </div></div>
+                <h6 class="mb-0 fw-bold"><?= $roleCounts['editor'] ?></h6>
+            </div>
         </div>
-        <div class="col-md-3 col-6 mb-2">
-            <div class="card"><div class="card-body text-center">
-                <div class="stats-icon red mb-2 mx-auto"><i class="bi bi-person"></i></div>
+        
+        <div class="card">
+            <div class="card-body text-center stats-card-compact">
+                <div class="stats-icon red mb-2 mx-auto">
+                    <i class="bi bi-person"></i>
+                </div>
                 <h6 class="text-muted mb-1">Author</h6>
-                <h6 class="mb-0"><?= $roleCounts['author'] ?></h6>
-            </div></div>
+                <h6 class="mb-0 fw-bold"><?= $roleCounts['author'] ?></h6>
+            </div>
         </div>
     </section>
 
@@ -113,56 +202,58 @@ include '../../includes/header.php';
             <div class="card-header d-flex flex-wrap flex-row justify-content-between align-items-center gap-2">
                 <div class="card-title m-0 fw-bold">Daftar Pengguna</div>
                 <div>
-                    <a href="users_add.php" class="btn btn-primary">
+                    <a href="users_add.php" class="btn btn-primary btn-sm">
                         <i class="bi bi-plus-circle"></i>
-                        <span class="d-none d-md-inline">Tambah Pengguna</span>
+                        <span class="d-none d-sm-inline">Tambah Pengguna</span>
                     </a>
                 </div>
             </div>
             <div class="card-body">
                 <!-- Filter Panel -->
-                <form method="get" class="row g-2 align-items-center mb-3">
+                <form method="get" class="row g-2 align-items-center mb-3 filter-form">
                     <div class="col-12 col-sm-3">
-                        <input type="text" name="search" class="form-control" placeholder="Cari nama/email..." value="<?= htmlspecialchars($search) ?>">
+                        <input type="text" name="search" class="form-control form-control-sm" placeholder="Cari nama/email..." value="<?= htmlspecialchars($search) ?>">
                     </div>
                     <div class="col-6 col-sm-2">
-                        <select name="role" class="form-select custom-dropdown">
+                        <select name="role" class="form-select form-select-sm custom-dropdown">
                             <?php foreach($roleOptions as $val=>$txt): ?>
                                 <option value="<?= $val ?>"<?= $role===$val?' selected':'' ?>><?= $txt ?></option>
                             <?php endforeach ?>
                         </select>
                     </div>
                     <div class="col-6 col-sm-2">
-                        <select name="is_active" class="form-select custom-dropdown">
+                        <select name="is_active" class="form-select form-select-sm custom-dropdown">
                             <?php foreach($activeOptions as $val=>$txt): ?>
                                 <option value="<?= $val ?>"<?= $isActive===$val?' selected':'' ?>><?= $txt ?></option>
                             <?php endforeach ?>
                         </select>
                     </div>
                     <div class="col-6 col-sm-2">
-                        <select name="perpage" class="form-select custom-dropdown">
+                        <select name="perpage" class="form-select form-select-sm custom-dropdown">
                             <?php foreach($perPageOptions as $n): ?>
-                                <option value="<?= $n ?>"<?= $perPage==$n?' selected':'' ?>><?= $n ?> / halaman</option>
+                                <option value="<?= $n ?>"<?= $perPage==$n?' selected':'' ?>><?= $n ?> / hal</option>
                             <?php endforeach ?>
                         </select>
                     </div>
                     <div class="col-6 col-sm-2">
-                        <select name="show_deleted" class="form-select custom-dropdown">
+                        <select name="show_deleted" class="form-select form-select-sm custom-dropdown">
                             <?php foreach($deletedOptions as $val=>$txt): ?>
                                 <option value="<?= $val ?>"<?= $showDeleted===$val?' selected':'' ?>><?= $txt ?></option>
                             <?php endforeach ?>
                         </select>
                     </div>
                     <div class="col-12 col-sm-1">
-                        <button class="btn btn-outline-primary w-100" type="submit">
-                            <i class="bi bi-search"></i> <span class="d-none d-md-inline"></span>
+                        <button class="btn btn-outline-primary btn-sm w-100" type="submit">
+                            <i class="bi bi-search"></i>
                         </button>
                     </div>
                 </form>
 
                 <?php if ($role || $isActive!=='' || $search|| $showDeleted=='1'): ?>
                     <div class="mb-3">
-                        <a href="users_list.php" class="btn btn-sm btn-secondary"><i class="bi bi-x-circle"></i> Reset</a>
+                        <a href="users_list.php" class="btn btn-sm btn-secondary">
+                            <i class="bi bi-x-circle"></i> Reset
+                        </a>
                     </div>
                 <?php endif ?>
 
@@ -172,11 +263,11 @@ include '../../includes/header.php';
                             <tr>
                                 <th style="width:45px">No</th>
                                 <th>Nama</th>
-                                <th>Email</th>
+                                <th class="d-none d-md-table-cell">Email</th>
                                 <th>Role</th>
-                                <th>Status</th>
-                                <th>Last Login</th>
-                                <th class="text-center" style="width:230px">Aksi</th>
+                                <th class="d-none d-lg-table-cell">Status</th>
+                                <th class="d-none d-lg-table-cell">Last Login</th>
+                                <th class="text-center" style="width:140px">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -194,68 +285,48 @@ include '../../includes/header.php';
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="avatar avatar-md me-2">
-                                                <img src="<?= $user['photo'] ? uploadUrl($user['photo']) : ADMIN_URL . 'assets/static/images/faces/1.jpg' ?>">
+                                                <img src="<?= $user['photo'] ? uploadUrl($user['photo']) : ADMIN_URL . 'assets/static/images/faces/1.jpg' ?>" alt="Avatar">
                                             </div>
-                                            <span class="fw-semibold"><?= htmlspecialchars($user['name']) ?></span>
+                                            <div>
+                                                <div class="fw-semibold"><?= htmlspecialchars($user['name']) ?></div>
+                                                <small class="text-muted d-md-none"><?= htmlspecialchars($user['email']) ?></small>
+                                            </div>
                                         </div>
                                     </td>
-                                    <td><?= htmlspecialchars($user['email']) ?></td>
+                                    <td class="d-none d-md-table-cell"><?= htmlspecialchars($user['email']) ?></td>
                                     <td><?= getRoleBadge($user['role']) ?></td>
-                                    <td>
-                                        <?php if ($user['is_active'] == 1): ?>
+                                    <td class="d-none d-lg-table-cell">
+                                        <?php if ($user['is_active']): ?>
                                             <span class="badge bg-success">Aktif</span>
-                                        <?php elseif ($user['is_active'] == 3): ?>
-                                            <span class="badge bg-warning">Pending</span>
                                         <?php else: ?>
                                             <span class="badge bg-secondary">Tidak Aktif</span>
                                         <?php endif ?>
                                         <?php if ($isTrashed): ?>
-                                            <span class="badge bg-secondary ms-1">Deleted</span>
+                                            <span class="badge bg-danger ms-1">Deleted</span>
                                         <?php endif ?>
                                     </td>
-                                    <td>
+                                    <td class="d-none d-lg-table-cell">
                                         <small><?= $user['last_login_at'] ? formatTanggal($user['last_login_at'], 'd M Y H:i') : 'Belum login' ?></small>
                                     </td>
                                     <td class="text-center">
                                         <?php if ($isTrashed): ?>
-                                            <span class="text-danger">
-                                                <strong>Deleted at <?= formatTanggal($user['deleted_at'], 'd M Y H:i') ?></strong>
-                                            </span>
+                                            <span class="badge bg-danger">Deleted</span>
                                         <?php else: ?>
-                                            <div class="btn-group btn-group-sm gap-1">
-                                                <?php if($user['is_active'] == 3): ?>
-                                                    <!-- Hanya tampilkan ACC dan Reject untuk status Pending dengan konfirmasi -->
-                                                    <button type="button" 
-                                                       class="btn btn-success btn-acc-user" 
-                                                       title="ACC Akun Baru"
-                                                       data-id="<?= $user['id'] ?>"
-                                                       data-name="<?= htmlspecialchars($user['name']) ?>"
-                                                       data-email="<?= htmlspecialchars($user['email']) ?>">
-                                                        <i class="bi bi-check2-circle"></i>
-                                                    </button>
-                                                    <button type="button" 
-                                                       class="btn btn-danger btn-reject-user" 
-                                                       title="Tolak Akun Baru"
-                                                       data-id="<?= $user['id'] ?>"
-                                                       data-name="<?= htmlspecialchars($user['name']) ?>"
-                                                       data-email="<?= htmlspecialchars($user['email']) ?>">
-                                                        <i class="bi bi-x-circle"></i>
-                                                    </button>
-                                                <?php else: ?>
-                                                    <!-- Tampilkan tombol normal untuk user aktif/tidak aktif -->
-                                                    <a href="users_view.php?id=<?= $user['id'] ?>" class="btn btn-info" title="Detail"><i class="bi bi-eye"></i></a>
-                                                    <a href="users_edit.php?id=<?= $user['id'] ?>" class="btn btn-warning" title="Edit"><i class="bi bi-pencil"></i></a>
-                                                    <?php if($user['id']!=getCurrentUser()['id']): ?>
-                                                        <a href="users_delete.php?id=<?= $user['id'] ?>" 
-                                                           class="btn btn-danger"
-                                                           data-confirm-delete
-                                                           data-title="<?= htmlspecialchars($user['name']) ?>"
-                                                           data-message="User &quot;<?= htmlspecialchars($user['name']) ?>&quot; akan dipindahkan ke Trash. Lanjutkan?"
-                                                           data-loading-text="Menghapus user..." 
-                                                           title="Hapus">
-                                                            <i class="bi bi-trash"></i>
-                                                        </a>
-                                                    <?php endif ?>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="users_view.php?id=<?= $user['id'] ?>" class="btn btn-info" title="Detail">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <a href="users_edit.php?id=<?= $user['id'] ?>" class="btn btn-warning" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                <?php if($user['id']!=getCurrentUser()['id']): ?>
+                                                <a href="users_delete.php?id=<?= $user['id'] ?>" class="btn btn-danger"
+                                                   data-confirm-delete
+                                                   data-title="<?= htmlspecialchars($user['name']) ?>"
+                                                   data-message="User &quot;<?= htmlspecialchars($user['name']) ?>&quot; akan dipindahkan ke Trash. Lanjutkan?"
+                                                   data-loading-text="Menghapus user..." title="Hapus">
+                                                   <i class="bi bi-trash"></i>
+                                                </a>
                                                 <?php endif ?>
                                             </div>
                                         <?php endif ?>
@@ -266,22 +337,25 @@ include '../../includes/header.php';
                     </table>
                 </div>
 
-                <!-- Pagination bawah selalu tampil -->
+                <!-- Pagination -->
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
                     <div>
                         <small class="text-muted">
-                            Halaman <?= $page ?> dari <?= $totalPages ?> · Menampilkan <?= count($users) ?> dari <?= $totalItems ?> pengguna
+                            Hal <?= $page ?>/<?= $totalPages ?> · <?= count($users) ?> dari <?= $totalItems ?>
                         </small>
                     </div>
                     <nav aria-label="Page navigation">
-                        <ul class="pagination mb-0">
+                        <ul class="pagination pagination-sm mb-0">
                             <li class="page-item<?= $page<=1?' disabled':'' ?>">
                                 <a class="page-link" href="?<?= http_build_query(array_merge($_GET,['page'=>$page-1])) ?>">
                                     <i class="bi bi-chevron-left"></i>
                                 </a>
                             </li>
-                            <?php $from=max(1,$page-2); $to=min($totalPages,$page+2);
-                            for($i=$from;$i<=$to;$i++): ?>
+                            <?php 
+                            $from=max(1,$page-1); 
+                            $to=min($totalPages,$page+1);
+                            for($i=$from;$i<=$to;$i++): 
+                            ?>
                             <li class="page-item<?= $i==$page?' active':'' ?>">
                                 <a class="page-link" href="?<?= http_build_query(array_merge($_GET,['page'=>$i])) ?>">
                                     <?= $i ?>
@@ -301,136 +375,5 @@ include '../../includes/header.php';
         </div>
     </section>
 </div>
-
-<script>
-// Custom Notification Handler untuk ACC dan Reject User
-document.addEventListener('DOMContentLoaded', function() {
-    // Handler untuk tombol ACC
-    document.querySelectorAll('.btn-acc-user').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            const userId = this.dataset.id;
-            const userName = this.dataset.name;
-            const userEmail = this.dataset.email;
-            
-            showConfirmAlert({
-                type: 'warning',
-                title: 'Konfirmasi Aktivasi Akun',
-                message: `Apakah Anda yakin ingin mengaktifkan akun berikut?<br><br><strong>${userName}</strong><br><small class="text-muted">${userEmail}</small>`,
-                confirmText: 'Ya, Aktifkan',
-                cancelText: 'Batal',
-                onConfirm: function() {
-                    showLoading('Mengaktifkan akun...');
-                    window.location.href = `users_acc.php?id=${userId}`;
-                }
-            });
-        });
-    });
-    
-    // Handler untuk tombol Reject
-    document.querySelectorAll('.btn-reject-user').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            const userId = this.dataset.id;
-            const userName = this.dataset.name;
-            const userEmail = this.dataset.email;
-            
-            showConfirmAlert({
-                type: 'danger',
-                title: 'Konfirmasi Penolakan Akun',
-                message: `Apakah Anda yakin ingin menolak akun berikut?<br><br><strong>${userName}</strong><br><small class="text-muted">${userEmail}</small><br><br><span class="text-danger">Akun akan dinonaktifkan dan user tidak dapat login.</span>`,
-                confirmText: 'Ya, Tolak',
-                cancelText: 'Batal',
-                onConfirm: function() {
-                    showLoading('Menolak akun...');
-                    window.location.href = `users_reject.php?id=${userId}`;
-                }
-            });
-        });
-    });
-});
-
-// Function untuk menampilkan konfirmasi alert
-function showConfirmAlert(options) {
-    const overlay = document.createElement('div');
-    overlay.className = 'btikp-alert-overlay';
-    
-    const alertBox = document.createElement('div');
-    alertBox.className = `btikp-alert btikp-alert-${options.type || 'warning'}`;
-    
-    // Icon berdasarkan type
-    let iconClass = 'bi-question-circle';
-    if (options.type === 'success') iconClass = 'bi-check-circle';
-    if (options.type === 'danger' || options.type === 'error') iconClass = 'bi-exclamation-circle';
-    if (options.type === 'warning') iconClass = 'bi-exclamation-triangle';
-    if (options.type === 'info') iconClass = 'bi-info-circle';
-    
-    alertBox.innerHTML = `
-        <div class="btikp-alert-icon">
-            <i class="bi ${iconClass}"></i>
-        </div>
-        <div class="btikp-alert-title">${options.title || 'Konfirmasi'}</div>
-        <div class="btikp-alert-message">${options.message || 'Apakah Anda yakin?'}</div>
-        <div class="btikp-alert-actions">
-            <button class="btikp-btn btikp-btn-secondary btn-cancel">${options.cancelText || 'Batal'}</button>
-            <button class="btikp-btn btikp-btn-${options.type || 'warning'} btn-confirm">${options.confirmText || 'Ya'}</button>
-        </div>
-    `;
-    
-    overlay.appendChild(alertBox);
-    document.body.appendChild(overlay);
-    
-    setTimeout(() => overlay.classList.add('show'), 10);
-    
-    // Handler tombol Batal
-    alertBox.querySelector('.btn-cancel').addEventListener('click', function() {
-        overlay.classList.remove('show');
-        setTimeout(() => overlay.remove(), 300);
-        if (options.onCancel) options.onCancel();
-    });
-    
-    // Handler tombol Konfirmasi
-    alertBox.querySelector('.btn-confirm').addEventListener('click', function() {
-        overlay.classList.remove('show');
-        setTimeout(() => overlay.remove(), 300);
-        if (options.onConfirm) options.onConfirm();
-    });
-    
-    // Close on overlay click
-    overlay.addEventListener('click', function(e) {
-        if (e.target === overlay) {
-            overlay.classList.remove('show');
-            setTimeout(() => overlay.remove(), 300);
-            if (options.onCancel) options.onCancel();
-        }
-    });
-}
-
-// Function untuk menampilkan loading overlay
-function showLoading(message) {
-    const overlay = document.createElement('div');
-    overlay.className = 'btikp-loading-overlay';
-    overlay.id = 'btikp-loading';
-    
-    overlay.innerHTML = `
-        <div class="btikp-loading">
-            <div class="btikp-loading-spinner"></div>
-            <div class="btikp-loading-message">${message || 'Memproses...'}</div>
-        </div>
-    `;
-    
-    document.body.appendChild(overlay);
-    setTimeout(() => overlay.classList.add('show'), 10);
-}
-
-// Function untuk hide loading
-function hideLoading() {
-    const overlay = document.getElementById('btikp-loading');
-    if (overlay) {
-        overlay.classList.remove('show');
-        setTimeout(() => overlay.remove(), 300);
-    }
-}
-</script>
 
 <?php include '../../includes/footer.php'; ?>

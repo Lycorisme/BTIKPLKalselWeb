@@ -326,13 +326,13 @@ include '../../includes/header.php';
                     
                     <hr>
                     
-                    <div class="d-flex justify-content-between">
-                        <a href="users_list.php" class="btn btn-secondary">
-                            <i class="bi bi-arrow-left"></i> Kembali
-                        </a>
+                    <div class="d-flex gap-2 flex-wrap">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-save"></i> Update Pengguna
                         </button>
+                        <a href="users_list.php" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Batal
+                        </a>
                     </div>
                 </form>
             </div>

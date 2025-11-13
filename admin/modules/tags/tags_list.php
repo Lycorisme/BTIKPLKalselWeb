@@ -8,17 +8,17 @@ require_once '../../../core/Database.php';
 require_once '../../../core/Helper.php';
 require_once '../../../models/Tag.php';
 
-$pageTitle = 'Kelola Tags';
-$db = Database::getInstance()->getConnection();
+ $pageTitle = 'Kelola Tags';
+ $db = Database::getInstance()->getConnection();
 
-$itemsPerPage = (int)getSetting('items_per_page', 10);
-$search = trim($_GET['search'] ?? '');
-$page = max(1, (int)($_GET['page'] ?? 1));
-$showDeleted = $_GET['show_deleted'] ?? '0';
+ $itemsPerPage = (int)getSetting('items_per_page', 10);
+ $search = trim($_GET['search'] ?? '');
+ $page = max(1, (int)($_GET['page'] ?? 1));
+ $showDeleted = $_GET['show_deleted'] ?? '0';
 
 // Build WHERE clause - MUST INCLUDE deleted_at check
-$where = [];
-$params = [];
+ $where = [];
+ $params = [];
 
 // DEFAULT: Hanya tampilkan data yang BELUM di-delete
 if ($showDeleted !== '1') {
@@ -33,38 +33,39 @@ if ($search) {
     $params[] = $searchTerm;
 }
 
-$whereClause = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
+ $whereClause = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
 
 // Count total
-$countSql = "SELECT COUNT(*) FROM tags t $whereClause";
-$stmtCount = $db->prepare($countSql);
-$stmtCount->execute($params);
-$totalItems = (int)$stmtCount->fetchColumn();
-$totalPages = max(1, ceil($totalItems / $itemsPerPage));
-$offset = ($page - 1) * $itemsPerPage;
+ $countSql = "SELECT COUNT(*) FROM tags t $whereClause";
+ $stmtCount = $db->prepare($countSql);
+ $stmtCount->execute($params);
+ $totalItems = (int)$stmtCount->fetchColumn();
+ $totalPages = max(1, ceil($totalItems / $itemsPerPage));
+ $offset = ($page - 1) * $itemsPerPage;
 
 // Get data dengan post count
-$sql = "
+ $sql = "
     SELECT 
         t.*,
         COUNT(pt.post_id) as post_count
     FROM tags t
     LEFT JOIN post_tags pt ON t.id = pt.tag_id
+    LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
     $whereClause
     GROUP BY t.id
     ORDER BY t.name ASC
     LIMIT ? OFFSET ?
 ";
 
-$params[] = $itemsPerPage;
-$params[] = $offset;
+ $params[] = $itemsPerPage;
+ $params[] = $offset;
 
-$stmt = $db->prepare($sql);
-$stmt->execute($params);
-$tags = $stmt->fetchAll();
+ $stmt = $db->prepare($sql);
+ $stmt->execute($params);
+ $tags = $stmt->fetchAll();
 
 // Options for dropdown
-$showDeletedOptions = [
+ $showDeletedOptions = [
     '0' => 'Tampilkan Tags Aktif',
     '1' => 'Tampilkan Tags Terhapus'
 ];
@@ -172,8 +173,8 @@ include '../../includes/header.php';
                                             </span>
                                         <?php else: ?>
                                             <div class="btn-group btn-group-sm">
-                                                <a href="<?= BASE_URL ?>news/tag.php?slug=<?= $tag['slug'] ?>"
-                                                   class="btn btn-info" target="_blank" title="Lihat">
+                                                <a href="tags_view.php?id=<?= $tag['id'] ?>"
+                                                   class="btn btn-info" title="Lihat Post">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
                                                 <?php if (hasRole(['super_admin', 'admin', 'editor'])): ?>

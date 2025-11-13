@@ -1,7 +1,7 @@
 <?php
 /**
  * Public Header Template
- * Includes: Meta tags, Navigation, Barba.js wrapper
+ * Includes: Meta tags, Navigation with Static Pages, Barba.js wrapper
  */
 
 // Get site settings
@@ -19,6 +19,23 @@ $social_media = [
     'linkedin' => getSetting('social_linkedin'),
     'tiktok' => getSetting('social_tiktok'),
 ];
+
+// Get static pages for navigation
+try {
+    $pageModel = new Page();
+    $staticPages = $pageModel->getAllPages();
+    // Filter only published pages
+    $staticPages = array_filter($staticPages, function($p) {
+        return $p['status'] === 'published';
+    });
+    // Sort by display_order
+    usort($staticPages, function($a, $b) {
+        return ($a['display_order'] ?? 999) - ($b['display_order'] ?? 999);
+    });
+} catch (Exception $e) {
+    $staticPages = [];
+    error_log('Error loading static pages: ' . $e->getMessage());
+}
 
 // SEO defaults
 $page_title = $pageTitle ?? $site_name;
@@ -91,169 +108,199 @@ $page_url = $pageUrl ?? (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' 
             overflow: hidden;
         }
         
-        /* Page transition overlay */
-        .page-transition {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-            z-index: 9999;
-            transform: translateY(-100%);
-            pointer-events: none;
+        /* Dropdown menu */
+        .dropdown {
+            position: relative;
         }
         
-        /* Loading spinner */
-        .loading-spinner {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 10000;
-            opacity: 0;
-            pointer-events: none;
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            min-width: 200px;
+            z-index: 100;
+        }
+        
+        .dropdown:hover .dropdown-menu {
+            display: block;
+        }
+        
+        .dropdown-menu a {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: #374151;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        
+        .dropdown-menu a:hover {
+            background: #f3f4f6;
+            color: #2563eb;
         }
     </style>
 </head>
 <body class="bg-gray-50 font-sans antialiased">
     
-    <!-- Page Transition Overlay -->
-    <div class="page-transition"></div>
-    
-    <!-- Loading Spinner -->
-    <div class="loading-spinner">
-        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white"></div>
-    </div>
-    
-    <!-- Barba Wrapper -->
-    <div data-barba="wrapper">
-        
-        <!-- Header / Navigation -->
-        <header class="bg-blue-900 text-white shadow-lg sticky top-0 z-50">
-            <div class="container mx-auto px-4">
-                <!-- Top Bar (Contact Info) -->
-                <div class="hidden md:flex justify-between items-center py-2 text-sm border-b border-blue-800">
-                    <div class="flex items-center space-x-4">
-                        <span><i class="fas fa-envelope mr-1"></i> <?= getSetting('contact_email', 'info@btikpkalsel.id') ?></span>
-                        <span><i class="fas fa-phone mr-1"></i> <?= getSetting('contact_phone', '(0511) 1234567') ?></span>
-                    </div>
-                    <div class="flex items-center space-x-3">
-                        <?php foreach ($social_media as $platform => $url): ?>
-                            <?php if (!empty($url)): ?>
-                                <a href="<?= htmlspecialchars($url) ?>" target="_blank" rel="noopener" class="hover:text-blue-300 transition" title="<?= ucfirst($platform) ?>">
-                                    <?php
-                                    $icons = [
-                                        'facebook' => 'fab fa-facebook',
-                                        'twitter' => 'fab fa-twitter',
-                                        'instagram' => 'fab fa-instagram',
-                                        'youtube' => 'fab fa-youtube',
-                                        'linkedin' => 'fab fa-linkedin',
-                                        'tiktok' => 'fab fa-tiktok',
-                                    ];
-                                    ?>
-                                    <i class="<?= $icons[$platform] ?? 'fas fa-link' ?> text-lg"></i>
-                                </a>
-                            <?php endif; ?>
-                        <?php endforeach; ?>
-                    </div>
+    <!-- Header / Navigation -->
+    <header class="bg-blue-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-4">
+            <!-- Top Bar (Contact Info) -->
+            <div class="hidden md:flex justify-between items-center py-2 text-sm border-b border-blue-800">
+                <div class="flex items-center space-x-4">
+                    <span><i class="fas fa-envelope mr-1"></i> <?= getSetting('contact_email', 'info@btikpkalsel.id') ?></span>
+                    <span><i class="fas fa-phone mr-1"></i> <?= getSetting('contact_phone', '(0511) 1234567') ?></span>
                 </div>
-                
-                <!-- Main Navigation -->
-                <nav class="py-4">
-                    <div class="flex justify-between items-center">
-                        <!-- Logo -->
-                        <a href="<?= BASE_URL ?>" class="flex items-center space-x-3">
-                            <img src="<?= $site_logo ?>" alt="<?= $site_name ?>" class="h-12 w-auto">
-                            <div class="hidden lg:block">
-                                <div class="text-xl font-bold"><?= $site_name ?></div>
-                                <div class="text-xs text-blue-200"><?= $site_tagline ?></div>
-                            </div>
+                <div class="flex items-center space-x-3">
+                    <?php foreach ($social_media as $platform => $url): ?>
+                        <?php if (!empty($url)): ?>
+                            <a href="<?= htmlspecialchars($url) ?>" target="_blank" rel="noopener" class="hover:text-blue-300 transition" title="<?= ucfirst($platform) ?>">
+                                <?php
+                                $icons = [
+                                    'facebook' => 'fab fa-facebook',
+                                    'twitter' => 'fab fa-twitter',
+                                    'instagram' => 'fab fa-instagram',
+                                    'youtube' => 'fab fa-youtube',
+                                    'linkedin' => 'fab fa-linkedin',
+                                    'tiktok' => 'fab fa-tiktok',
+                                ];
+                                ?>
+                                <i class="<?= $icons[$platform] ?? 'fas fa-link' ?> text-lg"></i>
+                            </a>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            
+            <!-- Main Navigation -->
+            <nav class="py-4">
+                <div class="flex justify-between items-center">
+                    <!-- Logo -->
+                    <a href="<?= BASE_URL ?>" class="flex items-center space-x-3">
+                        <img src="<?= $site_logo ?>" alt="<?= $site_name ?>" class="h-12 w-auto">
+                        <div class="hidden lg:block">
+                            <div class="text-xl font-bold"><?= $site_name ?></div>
+                            <div class="text-xs text-blue-200"><?= $site_tagline ?></div>
+                        </div>
+                    </a>
+                    
+                    <!-- Desktop Menu -->
+                    <div class="hidden md:flex items-center space-x-6">
+                        <a href="<?= BASE_URL ?>" class="hover:text-blue-300 transition">
+                            <i class="fas fa-home mr-1"></i> Beranda
                         </a>
                         
-                        <!-- Desktop Menu -->
-                        <div class="hidden md:flex items-center space-x-6">
-                            <a href="<?= BASE_URL ?>" class="hover:text-blue-300 transition">
-                                <i class="fas fa-home mr-1"></i> Beranda
+                        <!-- Static Pages Dropdown -->
+                        <?php if (!empty($staticPages)): ?>
+                        <div class="dropdown">
+                            <a href="#" class="hover:text-blue-300 transition flex items-center">
+                                <i class="fas fa-info-circle mr-1"></i> Tentang
+                                <i class="fas fa-chevron-down ml-1 text-xs"></i>
                             </a>
-                            <a href="<?= BASE_URL ?>posts.php" class="hover:text-blue-300 transition">
-                                <i class="fas fa-newspaper mr-1"></i> Berita
-                            </a>
-                            <a href="<?= BASE_URL ?>gallery.php" class="hover:text-blue-300 transition">
-                                <i class="fas fa-images mr-1"></i> Galeri
-                            </a>
-                            <a href="<?= BASE_URL ?>services.php" class="hover:text-blue-300 transition">
-                                <i class="fas fa-cogs mr-1"></i> Layanan
-                            </a>
-                            <a href="<?= BASE_URL ?>files.php" class="hover:text-blue-300 transition">
-                                <i class="fas fa-download mr-1"></i> Unduhan
-                            </a>
-                            <a href="<?= BASE_URL ?>contact.php" class="hover:text-blue-300 transition">
-                                <i class="fas fa-envelope mr-1"></i> Kontak
-                            </a>
-                            
-                            <!-- Search Button -->
-                            <button onclick="openSearchModal()" class="hover:text-blue-300 transition">
-                                <i class="fas fa-search"></i>
-                            </button>
+                            <div class="dropdown-menu">
+                                <?php foreach ($staticPages as $staticPage): ?>
+                                <a href="<?= BASE_URL ?>page.php?slug=<?= $staticPage['slug'] ?>">
+                                    <?= htmlspecialchars($staticPage['title']) ?>
+                                </a>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
+                        <?php endif; ?>
                         
-                        <!-- Mobile Menu Button -->
-                        <button onclick="toggleMobileMenu()" class="md:hidden text-white">
-                            <i class="fas fa-bars text-2xl"></i>
+                        <a href="<?= BASE_URL ?>posts.php" class="hover:text-blue-300 transition">
+                            <i class="fas fa-newspaper mr-1"></i> Berita
+                        </a>
+                        <a href="<?= BASE_URL ?>gallery.php" class="hover:text-blue-300 transition">
+                            <i class="fas fa-images mr-1"></i> Galeri
+                        </a>
+                        <a href="<?= BASE_URL ?>services.php" class="hover:text-blue-300 transition">
+                            <i class="fas fa-cogs mr-1"></i> Layanan
+                        </a>
+                        <a href="<?= BASE_URL ?>files.php" class="hover:text-blue-300 transition">
+                            <i class="fas fa-download mr-1"></i> Unduhan
+                        </a>
+                        <a href="<?= BASE_URL ?>contact.php" class="hover:text-blue-300 transition">
+                            <i class="fas fa-envelope mr-1"></i> Kontak
+                        </a>
+                        
+                        <!-- Search Button -->
+                        <button onclick="openSearchModal()" class="hover:text-blue-300 transition">
+                            <i class="fas fa-search"></i>
                         </button>
                     </div>
-                </nav>
+                    
+                    <!-- Mobile Menu Button -->
+                    <button onclick="toggleMobileMenu()" class="md:hidden text-white">
+                        <i class="fas fa-bars text-2xl"></i>
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </header>
+    
+    <!-- Mobile Menu (Hidden by default) -->
+    <div id="mobileMenu" class="hidden md:hidden bg-blue-800 text-white">
+        <div class="container mx-auto px-4 py-4 space-y-2">
+            <a href="<?= BASE_URL ?>" class="block py-2 hover:text-blue-300 transition">
+                <i class="fas fa-home mr-2"></i> Beranda
+            </a>
+            
+            <!-- Static Pages in Mobile -->
+            <?php if (!empty($staticPages)): ?>
+            <div class="border-t border-blue-700 pt-2 mt-2">
+                <p class="text-xs text-blue-200 mb-2 uppercase font-semibold">Tentang Kami</p>
+                <?php foreach ($staticPages as $staticPage): ?>
+                <a href="<?= BASE_URL ?>page.php?slug=<?= $staticPage['slug'] ?>" class="block py-2 pl-4 hover:text-blue-300 transition">
+                    <?= htmlspecialchars($staticPage['title']) ?>
+                </a>
+                <?php endforeach; ?>
             </div>
-        </header>
-        
-        <!-- Mobile Menu (Hidden by default) -->
-        <div id="mobileMenu" class="hidden md:hidden bg-blue-800 text-white">
-            <div class="container mx-auto px-4 py-4 space-y-2">
-                <a href="<?= BASE_URL ?>" class="block py-2 hover:text-blue-300 transition">
-                    <i class="fas fa-home mr-2"></i> Beranda
-                </a>
-                <a href="<?= BASE_URL ?>posts.php" class="block py-2 hover:text-blue-300 transition">
-                    <i class="fas fa-newspaper mr-2"></i> Berita
-                </a>
-                <a href="<?= BASE_URL ?>gallery.php" class="block py-2 hover:text-blue-300 transition">
-                    <i class="fas fa-images mr-2"></i> Galeri
-                </a>
-                <a href="<?= BASE_URL ?>services.php" class="block py-2 hover:text-blue-300 transition">
-                    <i class="fas fa-cogs mr-2"></i> Layanan
-                </a>
-                <a href="<?= BASE_URL ?>files.php" class="block py-2 hover:text-blue-300 transition">
-                    <i class="fas fa-download mr-2"></i> Unduhan
-                </a>
-                <a href="<?= BASE_URL ?>contact.php" class="block py-2 hover:text-blue-300 transition">
-                    <i class="fas fa-envelope mr-2"></i> Kontak
-                </a>
-                
-                <!-- Social Media di Mobile -->
-                <div class="pt-4 mt-4 border-t border-blue-700">
-                    <p class="text-xs text-blue-200 mb-2">Ikuti Kami:</p>
-                    <div class="flex space-x-3">
-                        <?php foreach ($social_media as $platform => $url): ?>
-                            <?php if (!empty($url)): ?>
-                                <a href="<?= htmlspecialchars($url) ?>" target="_blank" rel="noopener" class="hover:text-blue-300 transition">
-                                    <?php
-                                    $icons = [
-                                        'facebook' => 'fab fa-facebook',
-                                        'twitter' => 'fab fa-twitter',
-                                        'instagram' => 'fab fa-instagram',
-                                        'youtube' => 'fab fa-youtube',
-                                        'linkedin' => 'fab fa-linkedin',
-                                        'tiktok' => 'fab fa-tiktok',
-                                    ];
-                                    ?>
-                                    <i class="<?= $icons[$platform] ?? 'fas fa-link' ?> text-xl"></i>
-                                </a>
-                            <?php endif; ?>
-                        <?php endforeach; ?>
-                    </div>
+            <?php endif; ?>
+            
+            <a href="<?= BASE_URL ?>posts.php" class="block py-2 hover:text-blue-300 transition">
+                <i class="fas fa-newspaper mr-2"></i> Berita
+            </a>
+            <a href="<?= BASE_URL ?>gallery.php" class="block py-2 hover:text-blue-300 transition">
+                <i class="fas fa-images mr-2"></i> Galeri
+            </a>
+            <a href="<?= BASE_URL ?>services.php" class="block py-2 hover:text-blue-300 transition">
+                <i class="fas fa-cogs mr-2"></i> Layanan
+            </a>
+            <a href="<?= BASE_URL ?>files.php" class="block py-2 hover:text-blue-300 transition">
+                <i class="fas fa-download mr-2"></i> Unduhan
+            </a>
+            <a href="<?= BASE_URL ?>contact.php" class="block py-2 hover:text-blue-300 transition">
+                <i class="fas fa-envelope mr-2"></i> Kontak
+            </a>
+            
+            <!-- Social Media di Mobile -->
+            <div class="pt-4 mt-4 border-t border-blue-700">
+                <p class="text-xs text-blue-200 mb-2">Ikuti Kami:</p>
+                <div class="flex space-x-3">
+                    <?php foreach ($social_media as $platform => $url): ?>
+                        <?php if (!empty($url)): ?>
+                            <a href="<?= htmlspecialchars($url) ?>" target="_blank" rel="noopener" class="hover:text-blue-300 transition">
+                                <?php
+                                $icons = [
+                                    'facebook' => 'fab fa-facebook',
+                                    'twitter' => 'fab fa-twitter',
+                                    'instagram' => 'fab fa-instagram',
+                                    'youtube' => 'fab fa-youtube',
+                                    'linkedin' => 'fab fa-linkedin',
+                                    'tiktok' => 'fab fa-tiktok',
+                                ];
+                                ?>
+                                <i class="<?= $icons[$platform] ?? 'fas fa-link' ?> text-xl"></i>
+                            </a>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
                 </div>
             </div>
         </div>
-        
-        <!-- Barba Container (Content yang akan di-transition) -->
-        <div data-barba="container" data-barba-namespace="<?= $pageNamespace ?? 'default' ?>">
+    </div>
+    
+    <!-- Main Content Container -->
+    <div data-barba="container" data-barba-namespace="<?= $pageNamespace ?? 'default' ?>">

@@ -82,8 +82,8 @@ require_once '../../../core/Helper.php';
     <div class="page-title">
         <div class="row align-items-center">
             <div class="col-12 col-md-6 mb-2 mb-md-0">
-                <h3><i class=""></i><?= $pageTitle ?></h3>
-                <p class="text-subtitle text-muted mb-0">&#8195;&#8195;&#8195;&#8195;&#8195;</p>
+                <h3><?= $pageTitle ?></h3>
+                <p class="text-subtitle text-muted mb-0"></p>
             </div>
             <div class="col-12 col-md-6">
                 <nav aria-label="breadcrumb" class="breadcrumb-header float-md-end">
@@ -101,7 +101,7 @@ require_once '../../../core/Helper.php';
         <div class="row">
             <div class="col-12 col-lg-8">
                 <div class="card shadow-sm">
-                    <div class="card-header border-bottom">
+                    <div class="card-header">
                         <h5 class="mb-0">Informasi File</h5>
                     </div>
                     <div class="card-body">
@@ -182,14 +182,14 @@ require_once '../../../core/Helper.php';
                                 $iconColor = 'text-info';
                             } elseif (in_array(strtolower($file['file_type']), ['zip', 'rar', '7z'])) {
                                 $iconClass = 'bi-file-earmark-zip';
-                                $iconColor = 'text-secondary'; // Fixed for dark mode
+                                $iconColor = 'text-secondary';
                             }
                             ?>
                             <i class="bi <?= $iconClass ?> <?= $iconColor ?>" style="font-size: 4rem;"></i>
                         </div>
                         
                         <div class="mb-3">
-                            <h6 class="text-center"><?= htmlspecialchars(basename($file['file_path'])) ?></h6>
+                            <h6 class="text-center text-break"><?= htmlspecialchars(basename($file['file_path'])) ?></h6>
                             <div class="d-flex justify-content-between mb-2">
                                 <span class="text-muted">Ukuran:</span>
                                 <span><?= formatFileSize($file['file_size']) ?></span>
@@ -227,7 +227,7 @@ require_once '../../../core/Helper.php';
                         </div>
                         <div class="mb-2">
                             <small class="text-muted">MIME Type:</small>
-                            <div><?= htmlspecialchars($file['mime_type']) ?></div>
+                            <div class="text-break"><?= htmlspecialchars($file['mime_type']) ?></div>
                         </div>
                         <div class="mb-2">
                             <small class="text-muted">Terakhir diubah:</small>

@@ -1,6 +1,6 @@
 <?php
 /**
- * PDF Template: Laporan Categories & Tags
+ * PDF Template: Laporan Categories
  * Clean black & white design - Portrait
  */
 
@@ -28,6 +28,7 @@ if ($siteLogo && uploadExists($siteLogo)) {
             padding: 0;
         }
         
+        /* Header */
         .header {
             width: 100%;
             border-bottom: 2px solid #000;
@@ -61,6 +62,7 @@ if ($siteLogo && uploadExists($siteLogo)) {
             line-height: 1.4;
         }
         
+        /* Title */
         h1 {
             text-align: center;
             font-size: 14pt;
@@ -79,6 +81,7 @@ if ($siteLogo && uploadExists($siteLogo)) {
             padding-bottom: 3px;
         }
         
+        /* Tables */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -104,6 +107,7 @@ if ($siteLogo && uploadExists($siteLogo)) {
             font-size: 9pt;
         }
         
+        /* Stats Table */
         .stats-table {
             width: 100%;
             margin: 15px 0;
@@ -127,16 +131,13 @@ if ($siteLogo && uploadExists($siteLogo)) {
             font-weight: bold;
         }
         
+        /* Utilities */
         .text-center {
             text-align: center;
         }
         
         .text-right {
             text-align: right;
-        }
-        
-        .mt-20 {
-            margin-top: 20px;
         }
     </style>
 </head>
@@ -173,7 +174,7 @@ if ($siteLogo && uploadExists($siteLogo)) {
     </div>
     
     <!-- Title -->
-    <h1>LAPORAN KATEGORI & TAGS</h1>
+    <h1>LAPORAN KATEGORI</h1>
     
     <!-- Statistics -->
     <h2>RINGKASAN STATISTIK</h2>
@@ -181,131 +182,56 @@ if ($siteLogo && uploadExists($siteLogo)) {
         <tr>
             <td>
                 <div class="stats-label">TOTAL KATEGORI</div>
-                <div class="stats-value"><?= formatNumber($stats['total_categories']) ?></div>
+                <div class="stats-value"><?= formatNumber($stats['total']) ?></div>
             </td>
             <td>
-                <div class="stats-label">KATEGORI TERPAKAI</div>
-                <div class="stats-value"><?= formatNumber($stats['categories_with_posts']) ?></div>
+                <div class="stats-label">TERPAKAI</div>
+                <div class="stats-value"><?= formatNumber($stats['used']) ?></div>
             </td>
             <td>
-                <div class="stats-label">TOTAL TAGS</div>
-                <div class="stats-value"><?= formatNumber($stats['total_tags']) ?></div>
+                <div class="stats-label">TOTAL POSTS</div>
+                <div class="stats-value"><?= formatNumber($stats['total_posts']) ?></div>
             </td>
             <td>
-                <div class="stats-label">TAGS TERPAKAI</div>
-                <div class="stats-value"><?= formatNumber($stats['tags_with_posts']) ?></div>
+                <div class="stats-label">TOTAL VIEWS</div>
+                <div class="stats-value"><?= formatNumber($stats['total_views']) ?></div>
             </td>
         </tr>
     </table>
     
-    <!-- Categories and Tags List Side by Side -->
-    <div class="mt-20">
-        <table style="width: 100%;">
+    <!-- Categories List -->
+    <h2>DAFTAR KATEGORI</h2>
+    <table class="data-table">
+        <thead>
             <tr>
-                <td style="width: 50%; vertical-align: top; padding-right: 10px;">
-                    <h2>DAFTAR KATEGORI</h2>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 10%;">No</th>
-                                <th style="width: 60%;">Nama Kategori</th>
-                                <th style="width: 30%;" class="text-center">Posts</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($categories)): ?>
-                                <tr>
-                                    <td colspan="3" class="text-center">Tidak ada kategori</td>
-                                </tr>
-                            <?php else: ?>
-                                <?php $no = 1; foreach ($categories as $category): ?>
-                                    <tr>
-                                        <td class="text-center"><?= $no++ ?></td>
-                                        <td><?= htmlspecialchars($category['name']) ?></td>
-                                        <td class="text-center"><strong><?= formatNumber($category['post_count']) ?></strong></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </td>
-                
-                <td style="width: 50%; vertical-align: top; padding-left: 10px;">
-                    <h2>DAFTAR TAGS</h2>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 10%;">No</th>
-                                <th style="width: 60%;">Nama Tag</th>
-                                <th style="width: 30%;" class="text-center">Posts</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($tags)): ?>
-                                <tr>
-                                    <td colspan="3" class="text-center">Tidak ada tags</td>
-                                </tr>
-                            <?php else: ?>
-                                <?php $no = 1; foreach ($tags as $tag): ?>
-                                    <tr>
-                                        <td class="text-center"><?= $no++ ?></td>
-                                        <td><?= htmlspecialchars($tag['name']) ?></td>
-                                        <td class="text-center"><strong><?= formatNumber($tag['post_count']) ?></strong></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </td>
+                <th style="width: 5%;">No</th>
+                <th style="width: 20%;">Nama Kategori</th>
+                <th style="width: 12%;">Dibuat Tanggal</th>
+                <th style="width: 10%;">Total Post</th>
+                <th style="width: 30%;">Post Terbaru</th>
+                <th style="width: 13%;">Terakhir Digunakan</th>
+                <th style="width: 10%;">Total Views</th>
             </tr>
-        </table>
-    </div>
-    
-    <!-- Top 10 -->
-    <div class="mt-20">
-        <table style="width: 100%;">
-            <tr>
-                <td style="width: 50%; vertical-align: top; padding-right: 10px;">
-                    <h2>TOP 10 KATEGORI</h2>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Nama Kategori</th>
-                                <th style="width: 30%;" class="text-center">Posts</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($topCategories as $cat): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($cat['name']) ?></td>
-                                    <td class="text-center"><strong><?= formatNumber($cat['post_count']) ?></strong></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </td>
-                
-                <td style="width: 50%; vertical-align: top; padding-left: 10px;">
-                    <h2>TOP 10 TAGS</h2>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Nama Tag</th>
-                                <th style="width: 30%;" class="text-center">Posts</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($topTags as $tag): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($tag['name']) ?></td>
-                                    <td class="text-center"><strong><?= formatNumber($tag['post_count']) ?></strong></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </div>
+        </thead>
+        <tbody>
+            <?php if (empty($categories)): ?>
+                <tr>
+                    <td colspan="7" class="text-center" style="padding: 20px;">Tidak ada data kategori</td>
+                </tr>
+            <?php else: ?>
+                <?php $no = 1; foreach ($categories as $cat): ?>
+                    <tr>
+                        <td class="text-center"><?= $no++ ?></td>
+                        <td><strong><?= htmlspecialchars($cat['name']) ?></strong></td>
+                        <td class="text-center"><?= formatTanggal($cat['created_at'], 'd/m/Y') ?></td>
+                        <td class="text-center"><?= formatNumber($cat['total_posts']) ?></td>
+                        <td><?= htmlspecialchars($cat['latest_post'] ?? '-') ?></td>
+                        <td class="text-center"><?= $cat['last_used_date'] ? formatTanggal($cat['last_used_date'], 'd/m/Y') : '-' ?></td>
+                        <td class="text-center"><?= formatNumber($cat['total_views'] ?? 0) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </tbody>
+    </table>
 </body>
 </html>
