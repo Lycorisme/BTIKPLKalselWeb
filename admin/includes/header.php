@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin Header Template
- * With Dynamic Favicon, Site Name, User Photo & Notifications
+ * With Dynamic Favicon, Site Name, User Photo & Dynamic Notification Theme Loading
  */
 if (!defined('ADMIN_URL')) {
     die('Direct access not allowed');
@@ -32,7 +32,7 @@ if (!isset($currentUser['photo'])) {
 // ===================================
 try {
     $db = Database::getInstance()->getConnection();
-    
+
     // Get unread contact messages count
     $notifCountStmt = $db->query("
         SELECT COUNT(*) as total 
@@ -41,7 +41,7 @@ try {
         AND deleted_at IS NULL
     ");
     $unreadCount = (int)$notifCountStmt->fetchColumn();
-    
+
     // Get recent unread messages (last 5)
     $notifStmt = $db->query("
         SELECT id, name, subject, created_at 
@@ -52,12 +52,46 @@ try {
         LIMIT 5
     ");
     $notifications = $notifStmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
 } catch (PDOException $e) {
     error_log('Error fetching notifications: ' . $e->getMessage());
     $unreadCount = 0;
     $notifications = [];
 }
+
+// ===================================
+// DYNAMIC NOTIFICATION THEME LOADING
+// ===================================
+$notification_theme = getSetting('notification_alert_theme', 'alecto-final-blow');
+
+// Map theme names to CSS and JS file names
+$themeFiles = [
+    'alecto-final-blow' => [
+        'css' => 'notifications.css',
+        'js' => 'notifications.js'
+    ],
+    'an-eye-for-an-eye' => [
+        'css' => 'notifications_an_eye_for_an_eye.css',
+        'js' => 'notifications_an_eye_for_an_eye.js'
+    ],
+    'throne-of-ruin' => [
+        'css' => 'notifications_throne.css',
+        'js' => 'notifications_throne.js'
+    ],
+    'hoki-crossbow-of-tang' => [
+        'css' => 'notifications_crossbow.css',
+        'js' => 'notifications_crossbow.js'
+    ],
+    'death-sonata' => [
+        'css' => 'notifications_death_sonata.css',
+        'js' => 'notifications_death_sonata.js'
+    ]
+];
+
+// Get current theme files or fallback to default
+$currentThemeFiles = $themeFiles[$notification_theme] ?? $themeFiles['alecto-final-blow'];
+$themeCssFile = $currentThemeFiles['css'];
+$themeJsFile = $currentThemeFiles['js'];
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -65,24 +99,30 @@ try {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title><?= $pageTitle ?? 'Admin' ?> - <?= $siteName ?></title>
-    
+
     <?php if ($siteFavicon): ?>
         <link rel="icon" type="image/png" href="<?= uploadUrl($siteFavicon) ?>" />
     <?php else: ?>
         <link rel="icon" type="image/png" href="<?= ADMIN_URL ?>assets/static/images/logo/favicon.png" />
     <?php endif; ?>
-    
+
     <!-- Mazer CSS -->
     <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/compiled/css/app.css" />
     <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/compiled/css/app-dark.css" />
     <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/compiled/css/iconly.css" />
-    
+
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
-    
-    <!-- BTIKP Custom Notifications CSS -->
-    <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/css/notifications.css?v=<?= time() ?>" />
-    
+
+    <!-- DYNAMIC NOTIFICATION THEME CSS -->
+    <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/css/<?= $themeCssFile ?>?v=<?= time() ?>" 
+          data-notification-theme="<?= $notification_theme ?>" />
+
+    <!-- Inject notification theme JavaScript global variable -->
+    <script>
+        window.currentNotificationAlertTheme = '<?= $notification_theme ?>';
+    </script>
+
     <style>
         .stats-icon {
             width: 3rem;
@@ -97,23 +137,23 @@ try {
         .stats-icon.blue { background-color: #57caeb; color: white; }
         .stats-icon.green { background-color: #5ddab4; color: white; }
         .stats-icon.red { background-color: #ff7976; color: white; }
-        
+
         /* User avatar styles */
         .avatar img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
-        
+
         .user-menu .avatar {
             border: 2px solid #e9ecef;
         }
-        
+
         /* Search box styles */
         .search-form-desktop {
             max-width: 300px;
         }
-        
+
         .search-toggle-mobile {
             background: transparent;
             border: none;
@@ -122,11 +162,11 @@ try {
             color: #5a5a5a;
             padding: 0.5rem;
         }
-        
+
         .search-toggle-mobile:hover {
             color: #0d6efd;
         }
-        
+
         .search-form-mobile {
             display: none;
             position: absolute;
@@ -139,15 +179,15 @@ try {
             z-index: 1000;
             animation: slideDown 0.3s ease;
         }
-        
+
         [data-bs-theme="dark"] .search-form-mobile {
             background: #1a1d20;
         }
-        
+
         .search-form-mobile.show {
             display: block;
         }
-        
+
         @keyframes slideDown {
             from {
                 opacity: 0;
@@ -158,49 +198,49 @@ try {
                 transform: translateY(0);
             }
         }
-        
+
         /* Theme toggle in dropdown */
         .theme-toggle-item {
             cursor: pointer;
         }
-        
+
         .theme-toggle-item:hover {
             background-color: #f8f9fa;
         }
-        
+
         [data-bs-theme="dark"] .theme-toggle-item:hover {
             background-color: #2d3135;
         }
-        
+
         /* Responsive */
         @media (max-width: 768px) {
             .search-form-desktop {
                 display: none !important;
             }
-            
+
             .search-toggle-mobile {
                 display: block;
             }
-            
+
             .user-name {
                 display: none;
             }
-            
+
             .navbar-nav {
                 gap: 0.5rem;
             }
         }
-        
+
         @media (min-width: 769px) {
             .search-toggle-mobile {
                 display: none;
             }
-            
+
             .search-form-mobile {
                 display: none !important;
             }
         }
-        
+
         /* Notification badge positioning */
         .badge-notification {
             position: absolute;
@@ -215,63 +255,63 @@ try {
             align-items: center;
             justify-content: center;
         }
-        
+
         .nav-link {
             position: relative;
         }
-        
+
         /* Navbar alignment */
         .navbar-right-items {
             display: flex;
             align-items: center;
             gap: 0.5rem;
         }
-        
+
         /* Notification dropdown styling */
         .notification-dropdown {
             min-width: 320px;
             max-width: 400px;
         }
-        
+
         .notification-item {
             padding: 0.75rem 1rem;
             border-bottom: 1px solid #e9ecef;
             transition: background-color 0.2s;
         }
-        
+
         [data-bs-theme="dark"] .notification-item {
             border-bottom-color: #2d3135;
         }
-        
+
         .notification-item:hover {
             background-color: #f8f9fa;
         }
-        
+
         [data-bs-theme="dark"] .notification-item:hover {
             background-color: #2d3135;
         }
-        
+
         .notification-item:last-child {
             border-bottom: none;
         }
-        
+
         .notification-content {
             display: flex;
             flex-direction: column;
             gap: 0.25rem;
         }
-        
+
         .notification-title {
             font-weight: 600;
             font-size: 0.9rem;
             color: #333;
             margin: 0;
         }
-        
+
         [data-bs-theme="dark"] .notification-title {
             color: #e9ecef;
         }
-        
+
         .notification-text {
             font-size: 0.85rem;
             color: #6c757d;
@@ -280,36 +320,36 @@ try {
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        
+
         .notification-time {
             font-size: 0.75rem;
             color: #999;
             margin: 0;
         }
-        
+
         .notification-empty {
             padding: 2rem 1rem;
             text-align: center;
             color: #6c757d;
         }
-        
+
         .notification-footer {
             padding: 0.5rem 1rem;
             text-align: center;
             border-top: 1px solid #e9ecef;
         }
-        
+
         [data-bs-theme="dark"] .notification-footer {
             border-top-color: #2d3135;
         }
-        
+
         .notification-footer a {
             font-size: 0.85rem;
             font-weight: 600;
             text-decoration: none;
         }
     </style>
-    
+
     <?php if (isset($additionalHead)): ?>
         <?= $additionalHead ?>
     <?php endif; ?>
@@ -385,10 +425,10 @@ try {
 </head>
 <body>
     <script src="<?= ADMIN_URL ?>assets/static/js/initTheme.js"></script>
-    
+
     <div id="app">
         <?php include 'sidebar.php'; ?>
-        
+
         <div id="main" class='layout-navbar navbar-fixed'>
             <header>
                 <nav class="navbar navbar-expand navbar-light navbar-top">
@@ -420,7 +460,7 @@ try {
                             <button id="search-toggle-mobile" class="search-toggle-mobile" title="Search">
                                 <i class="bi bi-search"></i>
                             </button>
-                            
+
                             <!-- Notifications -->
                             <div class="dropdown">
                                 <a class="nav-link active dropdown-toggle text-gray-600" href="#" 
@@ -439,7 +479,7 @@ try {
                                             <?php endif; ?>
                                         </h6>
                                     </li>
-                                    
+
                                     <?php if (empty($notifications)): ?>
                                         <li class="notification-empty">
                                             <i class="bi bi-inbox fs-3 text-muted mb-2"></i>
@@ -466,7 +506,7 @@ try {
                                                 </a>
                                             </li>
                                         <?php endforeach; ?>
-                                        
+
                                         <li class="notification-footer">
                                             <a href="<?= ADMIN_URL ?>modules/contact/messages_list.php?status=unread" class="text-primary">
                                                 Lihat Semua Notifikasi
@@ -476,7 +516,7 @@ try {
                                     <?php endif; ?>
                                 </ul>
                             </div>
-                            
+
                             <!-- User Profile Dropdown -->
                             <div class="dropdown">
                                 <a href="#" data-bs-toggle="dropdown" aria-expanded="false">
@@ -513,7 +553,7 @@ try {
                                             <i class="icon-mid bi bi-gear me-2"></i> Pengaturan
                                         </a>
                                     </li>
-                                    <li><hr class="dropdown-divider"></li>
+                                    <!-- <li><hr class="dropdown-divider"></li> -->
                                     <li>
                                         <a class="dropdown-item theme-toggle-item" href="#" id="theme-toggle-item">
                                             <i id="theme-icon-light" class="icon-mid bi bi-sun-fill me-2 d-none"></i>
@@ -521,7 +561,7 @@ try {
                                             <span id="theme-text">Dark Mode</span>
                                         </a>
                                     </li>
-                                    <li><hr class="dropdown-divider"></li>
+                                    <!-- <li><hr class="dropdown-divider"></li> -->
                                     <li>
                                         <a class="dropdown-item" 
                                            href="<?= ADMIN_URL ?>logout.php"
@@ -534,7 +574,7 @@ try {
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Mobile Search Form (appears below navbar) -->
                     <div id="search-form-mobile" class="search-form-mobile">
                         <form role="search" action="<?= ADMIN_URL ?>modules/search/search.php" method="GET">

@@ -144,7 +144,6 @@ include '../../includes/header.php';
     </div>
 
     <section class="section">
-        <!-- ERROR HANDLING - Hanya tampilkan jika ada error validator -->
         <?php if ($validator && $validator->getError('general')): ?>
             <script>
             document.addEventListener('DOMContentLoaded', function() {
@@ -157,7 +156,6 @@ include '../../includes/header.php';
             <?= csrfField() ?>
             
             <div class="row">
-                <!-- General Settings -->
                 <div class="col-lg-6">
                     <div class="card">
                         <div class="card-header">
@@ -166,28 +164,24 @@ include '../../includes/header.php';
                             </h5>
                         </div>
                         <div class="card-body">
-                            <!-- Site Name -->
                             <div class="form-group mb-3">
                                 <label class="form-label">Nama Website</label>
                                 <input type="text" name="site_name" class="form-control" 
                                        value="<?= htmlspecialchars($settings['site_name'] ?? '') ?>">
                             </div>
                             
-                            <!-- Site Tagline -->
                             <div class="form-group mb-3">
                                 <label class="form-label">Tagline/Slogan</label>
                                 <input type="text" name="site_tagline" class="form-control" 
                                        value="<?= htmlspecialchars($settings['site_tagline'] ?? '') ?>">
                             </div>
                             
-                            <!-- Site Description -->
                             <div class="form-group mb-3">
                                 <label class="form-label">Deskripsi Website</label>
                                 <textarea name="site_description" class="form-control" rows="3"><?= htmlspecialchars($settings['site_description'] ?? '') ?></textarea>
                                 <small class="text-muted">Untuk SEO meta description</small>
                             </div>
                             
-                            <!-- Keywords -->
                             <div class="form-group mb-3">
                                 <label class="form-label">Keywords (SEO)</label>
                                 <input type="text" name="site_keywords" class="form-control" 
@@ -195,7 +189,6 @@ include '../../includes/header.php';
                                 <small class="text-muted">Pisahkan dengan koma</small>
                             </div>
                             
-                            <!-- Logo -->
                             <div class="form-group mb-3">
                                 <label class="form-label">Logo Website</label>
                                 <?php if (!empty($settings['site_logo'])): ?>
@@ -210,7 +203,6 @@ include '../../includes/header.php';
                                 </small>
                             </div>
                             
-                            <!-- Logo Text -->
                             <div class="form-group mb-3">
                                 <label class="form-label">Logo Text</label>
                                 <input type="text" name="site_logo_text" class="form-control" 
@@ -219,19 +211,17 @@ include '../../includes/header.php';
                                 <small class="text-muted">Akan muncul di sebelah logo di header</small>
                             </div>
                             
-                            <!-- Show Logo Text -->
                             <div class="form-group mb-3">
                                 <div class="form-check form-switch">
                                     <input type="checkbox" name="site_logo_show_text" id="site_logo_show_text" 
                                            class="form-check-input" 
                                            value="1" <?= ($settings['site_logo_show_text'] ?? '1') == '1' ? 'checked' : '' ?>>
                                     <label class="form-check-label" for="site_logo_show_text">
-                                        Tampilkan text di sebelah logo
+                                        Tampilkan text di bawah logo
                                     </label>
                                 </div>
                             </div>
                             
-                            <!-- Favicon -->
                             <div class="form-group mb-3">
                                 <label class="form-label">Favicon</label>
                                 <?php if (!empty($settings['site_favicon'])): ?>
@@ -244,7 +234,6 @@ include '../../includes/header.php';
                                 <small class="text-muted">ICO/PNG, 32x32px atau 64x64px</small>
                             </div>
                             
-                            <!-- Copyright Text -->
                             <div class="form-group mb-0">
                                 <label class="form-label">Copyright Text</label>
                                 <input type="text" name="site_copyright" class="form-control" 
@@ -254,7 +243,6 @@ include '../../includes/header.php';
                         </div>
                     </div>
                     
-                    <!-- Upload Settings -->
                     <div class="card">
                         <div class="card-header">
                             <h5 class="card-title mb-0">
@@ -262,14 +250,12 @@ include '../../includes/header.php';
                             </h5>
                         </div>
                         <div class="card-body">
-                            <!-- Max Upload Size -->
                             <div class="form-group mb-3">
                                 <label class="form-label">Max File Size (MB)</label>
                                 <input type="number" name="upload_max_size" class="form-control" 
                                        value="<?= htmlspecialchars($settings['upload_max_size'] ?? '5') ?>" min="1" max="50">
                             </div>
                             
-                            <!-- Allowed Images -->
                             <div class="form-group mb-3">
                                 <label class="form-label">Format Gambar Diizinkan</label>
                                 <input type="text" name="upload_allowed_images" class="form-control" 
@@ -277,7 +263,6 @@ include '../../includes/header.php';
                                 <small class="text-muted">Pisahkan dengan koma. Contoh: jpg,png,gif</small>
                             </div>
                             
-                            <!-- Allowed Docs -->
                             <div class="form-group mb-3">
                                 <label class="form-label">Format Dokumen Diizinkan</label>
                                 <input type="text" name="upload_allowed_docs" class="form-control" 
@@ -285,7 +270,6 @@ include '../../includes/header.php';
                                 <small class="text-muted">Contoh: pdf,doc,docx,xls,xlsx</small>
                             </div>
                             
-                            <!-- Pagination -->
                             <div class="form-group mb-0">
                                 <label class="form-label">Items Per Page (Admin)</label>
                                 <input type="number" name="items_per_page" class="form-control" 
@@ -293,11 +277,50 @@ include '../../includes/header.php';
                             </div>
                         </div>
                     </div>
-                </div>
+
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-bell"></i> Gaya Notifikasi & Alert
+                            </h5>
+                        </div>
+                        <div class="card-body">                            
+                            <?php
+                            $themeStyles = [
+                                'alecto-final-blow' => 'Alecto: Final Blow',
+                                'an-eye-for-an-eye' => 'An Eye for An Eye',
+                                'throne-of-ruin' => 'Throne of Ruin',
+                                'hoki-crossbow-of-tang' => 'Hoki Crossbow of Tang',
+                                'death-sonata' => 'Death Sonata'
+                            ];
+                            
+                            $currentTheme = $settings['notification_alert_theme'] ?? 'alecto-final-blow';
+                            ?>
+                            
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold" for="notification_alert_theme">
+                                    <i class=""></i> Pilih Tema
+                                </label>
+                                <select name="notification_alert_theme" id="notification_alert_theme" class="form-select">
+                                    <?php foreach ($themeStyles as $key => $label): ?>
+                                        <option value="<?= $key ?>" <?= $currentTheme === $key ? 'selected' : '' ?>>
+                                            <?= $label ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="mt-4 pt-3 border-top">
+                                <button type="button" class="btn btn-info btn-lg" 
+                                        onclick="previewTheme()" 
+                                        id="btnPreview">
+                                    <i class="bi bi-eye"></i> Preview
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
                 
-                <!-- Contact & Social -->
                 <div class="col-lg-6">
-                    <!-- Contact Info -->
                     <div class="card">
                         <div class="card-header">
                             <h5 class="card-title mb-0">
@@ -305,27 +328,23 @@ include '../../includes/header.php';
                             </h5>
                         </div>
                         <div class="card-body">
-                            <!-- Phone -->
                             <div class="form-group mb-3">
                                 <label class="form-label">Telepon</label>
                                 <input type="text" name="contact_phone" class="form-control" 
                                        value="<?= htmlspecialchars($settings['contact_phone'] ?? '') ?>">
                             </div>
                             
-                            <!-- Email -->
                             <div class="form-group mb-3">
                                 <label class="form-label">Email</label>
                                 <input type="email" name="contact_email" class="form-control" 
                                        value="<?= htmlspecialchars($settings['contact_email'] ?? '') ?>">
                             </div>
                             
-                            <!-- Address -->
                             <div class="form-group mb-3">
                                 <label class="form-label">Alamat Lengkap</label>
                                 <textarea name="contact_address" class="form-control" rows="3"><?= htmlspecialchars($settings['contact_address'] ?? '') ?></textarea>
                             </div>
                             
-                            <!-- Maps Embed -->
                             <div class="form-group mb-0">
                                 <label class="form-label">Google Maps Embed Code</label>
                                 <textarea name="contact_maps_embed" class="form-control" rows="3" placeholder="<iframe src=...></iframe>"><?= htmlspecialchars($settings['contact_maps_embed'] ?? '') ?></textarea>
@@ -334,7 +353,6 @@ include '../../includes/header.php';
                         </div>
                     </div>
                     
-                    <!-- Social Media -->
                     <div class="card">
                         <div class="card-header">
                             <h5 class="card-title mb-0">
@@ -342,7 +360,6 @@ include '../../includes/header.php';
                             </h5>
                         </div>
                         <div class="card-body">
-                            <!-- Facebook -->
                             <div class="form-group mb-3">
                                 <label class="form-label">
                                     <i class="bi bi-facebook text-primary"></i> Facebook URL
@@ -352,7 +369,6 @@ include '../../includes/header.php';
                                        placeholder="https://facebook.com/yourpage">
                             </div>
                             
-                            <!-- Instagram -->
                             <div class="form-group mb-3">
                                 <label class="form-label">
                                     <i class="bi bi-instagram text-danger"></i> Instagram URL
@@ -362,7 +378,6 @@ include '../../includes/header.php';
                                        placeholder="https://instagram.com/yourprofile">
                             </div>
                             
-                            <!-- YouTube -->
                             <div class="form-group mb-3">
                                 <label class="form-label">
                                     <i class="bi bi-youtube text-danger"></i> YouTube URL
@@ -372,7 +387,6 @@ include '../../includes/header.php';
                                        placeholder="https://youtube.com/@yourchannel">
                             </div>
                             
-                            <!-- Twitter -->
                             <div class="form-group mb-3">
                                 <label class="form-label">
                                     <i class="bi bi-twitter text-info"></i> Twitter/X URL
@@ -382,7 +396,6 @@ include '../../includes/header.php';
                                        placeholder="https://twitter.com/yourprofile">
                             </div>
                             
-                            <!-- TikTok -->
                             <div class="form-group mb-3">
                                 <label class="form-label">
                                     <i class="bi bi-tiktok text-dark"></i> TikTok URL
@@ -392,7 +405,6 @@ include '../../includes/header.php';
                                        placeholder="https://tiktok.com/@yourprofile">
                             </div>
                             
-                            <!-- LinkedIn -->
                             <div class="form-group mb-3">
                                 <label class="form-label">
                                     <i class="bi bi-linkedin text-primary"></i> LinkedIn URL
@@ -402,7 +414,6 @@ include '../../includes/header.php';
                                        placeholder="https://linkedin.com/in/yourprofile">
                             </div>
                             
-                            <!-- WhatsApp -->
                             <div class="form-group mb-0">
                                 <label class="form-label">
                                     <i class="bi bi-whatsapp text-success"></i> WhatsApp Link/Number
@@ -414,7 +425,6 @@ include '../../includes/header.php';
                         </div>
                     </div>
                     
-                    <!-- Appearance Settings -->
                     <div class="card mt-3">
                         <div class="card-header">
                             <h5 class="card-title mb-0">
@@ -422,7 +432,6 @@ include '../../includes/header.php';
                             </h5>
                         </div>
                         <div class="card-body">
-                            <!-- Login Background Type -->
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Login Page Background</label>
                                 
@@ -457,7 +466,6 @@ include '../../includes/header.php';
                                 </div>
                             </div>
                             
-                            <!-- Login Gradient Preset -->
                             <div id="login_gradient_field" class="form-group mb-3" 
                                  style="display: <?= ($settings['login_background_type'] ?? 'gradient') === 'gradient' ? 'block' : 'none' ?>;">
                                 <label class="form-label">Gradient Style</label>
@@ -473,7 +481,6 @@ include '../../includes/header.php';
                                 </select>
                             </div>
                             
-                            <!-- Login Image Upload -->
                             <div id="login_image_field" class="form-group mb-3" 
                                  style="display: <?= ($settings['login_background_type'] ?? 'gradient') === 'image' ? 'block' : 'none' ?>;">
                                 <label class="form-label">Background Image</label>
@@ -489,7 +496,6 @@ include '../../includes/header.php';
                                 </small>
                             </div>
                             
-                            <!-- Login Solid Color -->
                             <div id="login_color_field" class="form-group mb-3" 
                                  style="display: <?= ($settings['login_background_type'] ?? 'gradient') === 'solid' ? 'block' : 'none' ?>;">
                                 <label class="form-label">Background Color</label>
@@ -498,7 +504,6 @@ include '../../includes/header.php';
                                        style="height: 50px;">
                             </div>
                             
-                            <!-- Overlay Text Input -->
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Teks Overlay di Background</label>
                                 <textarea class="form-control" name="login_background_overlay_text" rows="3" placeholder="Masukkan teks yang akan muncul di atas background"><?= htmlspecialchars($settings['login_background_overlay_text'] ?? '') ?></textarea>
@@ -509,7 +514,6 @@ include '../../includes/header.php';
                 </div>
             </div>
             
-            <!-- Save Button -->
             <div class="row mt-3">
                 <div class="col-12">
                     <div class="card">
@@ -533,6 +537,13 @@ include '../../includes/header.php';
 </div>
 
 <script>
+    // Mendefinisikan variabel URL dan Tema sebelum settings.js dimuat
+    // Ini MENCEGAH error "ADMIN_URL not defined"
+    var ADMIN_URL = '<?= ADMIN_URL ?>';
+    var CURRENT_THEME = '<?= $settings['notification_alert_theme'] ?? 'alecto-final-blow' ?>';
+</script>
+
+<script src="<?= ADMIN_URL ?>assets/js/settings.js?v=1.2"></script> <script>
 function toggleBackgroundFields(type) {
     if (type === 'login') {
         const bgType = document.querySelector('input[name="login_background_type"]:checked').value;
@@ -584,15 +595,37 @@ function confirmBack() {
     });
 }
 
-// Show info alert on page load (optional demo)
-<?php if (isset($_GET['demo'])): ?>
-document.addEventListener('DOMContentLoaded', function() {
-    // Demo notification
-    setTimeout(function() {
-        notify.info('Halaman pengaturan siap digunakan!', 3000);
-    }, 500);
-});
-<?php endif; ?>
+
+// ==========================================================
+// == [PERUBAHAN JAVASCRIPT] ==
+// Mengubah fungsi previewTheme agar membaca dari <select>
+// ==========================================================
+function previewTheme() {
+    // [PERUBAHAN] Mengambil data dari <select>
+    const selectElement = document.getElementById('notification_alert_theme');
+    
+    if (!selectElement) {
+         notify.error('Elemen select tema tidak ditemukan!');
+         return;
+    }
+
+    // Ambil value (cth: 'an-eye-for-an-eye')
+    const themeName = selectElement.value;
+    
+    // Ambil teks yang tampil (cth: 'An Eye for An Eye')
+    const themeLabel = selectElement.options[selectElement.selectedIndex].text;
+    
+    // Call BTIKPSettings preview function
+    if (typeof BTIKPSettings !== 'undefined') {
+        BTIKPSettings.previewTheme(themeName, themeLabel);
+    } else {
+        console.error('BTIKPSettings not loaded!');
+        notify.error('Settings script belum dimuat. Refresh halaman dan coba lagi.');
+    }
+}
+// ==========================================================
+// == [AKHIR PERUBAHAN JAVASCRIPT] ==
+// ==========================================================
 </script>
 
 <?php include '../../includes/footer.php'; ?>

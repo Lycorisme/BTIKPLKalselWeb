@@ -1,0 +1,559 @@
+/**
+ * BTIKP Notification Theme: Hoki Crossbow of Tang (Enhanced)
+ * - Parchment, wood, nature with modern enhancements
+ * - Matches btikp-notification.js structure
+ */
+
+:root {
+    --bow-bg: #fdfaf4;
+    --bow-border: #daceb8;
+    --bow-wood-border: #8B4513;
+    --bow-text: #4a3e30;
+    --bow-title: #3d2c1d;
+    --bow-shadow: 0 8px 24px rgba(139, 69, 19, 0.15);
+    --bow-overlay: rgba(245, 241, 232, 0.85);
+    --bow-success: #228B22;
+    --bow-danger: #B22222;
+    --bow-warning: #DAA520;
+    --bow-info: #008080;
+    --bow-secondary: #708090;
+}
+
+/* ================================================================== */
+/* == CONTAINER ===================================================== */
+/* ================================================================== */
+.btikp-notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10001;
+    width: 360px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    pointer-events: none;
+}
+
+.btikp-notification-container > * {
+    pointer-events: auto;
+}
+
+/* ================================================================== */
+/* == TOAST ========================================================= */
+/* ================================================================== */
+.btikp-toast {
+    display: flex;
+    width: 100%;
+    max-width: 360px;
+    background: var(--bow-bg);
+    color: var(--bow-text);
+    border: 3px solid var(--bow-wood-border);
+    border-radius: 8px;
+    box-shadow: var(--bow-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    margin-bottom: 12px;
+    opacity: 0;
+    transform: translateX(110%) scale(0.9);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+}
+
+/* Texture overlay for parchment effect */
+.btikp-toast::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(139, 69, 19, 0.03) 2px,
+            rgba(139, 69, 19, 0.03) 4px
+        );
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Decorative corner accent */
+.btikp-toast::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, transparent 50%, rgba(139, 69, 19, 0.1) 50%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.btikp-toast.show {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+}
+
+.btikp-toast:hover {
+    transform: translateX(-5px) scale(1.02);
+    box-shadow: 0 12px 32px rgba(139, 69, 19, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.btikp-toast-icon {
+    flex: 0 0 60px;
+    display: grid;
+    place-items: center;
+    font-size: 26px;
+    position: relative;
+    z-index: 2;
+    transition: transform 0.3s ease;
+}
+
+.btikp-toast:hover .btikp-toast-icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.btikp-toast-content {
+    flex: 1;
+    padding: 14px 12px;
+    position: relative;
+    z-index: 2;
+}
+
+.btikp-toast-title {
+    font-weight: 700;
+    font-size: 1.1em;
+    color: var(--bow-title);
+    margin-bottom: 4px;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+    letter-spacing: 0.3px;
+}
+
+.btikp-toast-message {
+    font-size: 0.92em;
+    line-height: 1.5;
+    color: var(--bow-text);
+}
+
+.btikp-toast-close {
+    flex: 0 0 45px;
+    background: transparent;
+    border: 0;
+    color: var(--bow-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 2;
+}
+
+.btikp-toast-close:hover {
+    color: var(--bow-danger);
+    transform: rotate(90deg) scale(1.2);
+}
+
+/* Toast Colors with gradient backgrounds */
+.btikp-toast-success {
+    border-left: 6px solid var(--bow-success);
+    background: linear-gradient(135deg, #fdfaf4 0%, #f0fdf4 100%);
+}
+.btikp-toast-success .btikp-toast-icon { 
+    color: var(--bow-success);
+    filter: drop-shadow(0 2px 4px rgba(34, 139, 34, 0.3));
+}
+
+.btikp-toast-error,
+.btikp-toast-danger {
+    border-left: 6px solid var(--bow-danger);
+    background: linear-gradient(135deg, #fdfaf4 0%, #fef2f2 100%);
+}
+.btikp-toast-error .btikp-toast-icon,
+.btikp-toast-danger .btikp-toast-icon { 
+    color: var(--bow-danger);
+    filter: drop-shadow(0 2px 4px rgba(178, 34, 34, 0.3));
+}
+
+.btikp-toast-warning {
+    border-left: 6px solid var(--bow-warning);
+    background: linear-gradient(135deg, #fdfaf4 0%, #fffbeb 100%);
+}
+.btikp-toast-warning .btikp-toast-icon { 
+    color: var(--bow-warning);
+    filter: drop-shadow(0 2px 4px rgba(218, 165, 32, 0.3));
+}
+
+.btikp-toast-info {
+    border-left: 6px solid var(--bow-info);
+    background: linear-gradient(135deg, #fdfaf4 0%, #f0fdfa 100%);
+}
+.btikp-toast-info .btikp-toast-icon { 
+    color: var(--bow-info);
+    filter: drop-shadow(0 2px 4px rgba(0, 128, 128, 0.3));
+}
+
+/* ================================================================== */
+/* == ALERT / CONFIRM =============================================== */
+/* ================================================================== */
+.btikp-alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bow-overlay);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.btikp-alert-overlay.show {
+    opacity: 1;
+}
+
+.btikp-alert {
+    width: 90%;
+    max-width: 460px;
+    background: var(--bow-bg);
+    color: var(--bow-text);
+    border: 4px solid var(--bow-wood-border);
+    border-radius: 12px;
+    text-align: center;
+    padding: 32px;
+    box-shadow: 
+        var(--bow-shadow),
+        inset 0 2px 0 rgba(255, 255, 255, 0.5),
+        0 0 0 1px rgba(139, 69, 19, 0.1);
+    transform: scale(0.8) translateY(-20px);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Decorative corners */
+.btikp-alert::before,
+.btikp-alert::after {
+    content: '';
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border: 3px solid var(--bow-wood-border);
+}
+
+.btikp-alert::before {
+    top: 12px;
+    left: 12px;
+    border-right: none;
+    border-bottom: none;
+    border-top-left-radius: 8px;
+}
+
+.btikp-alert::after {
+    bottom: 12px;
+    right: 12px;
+    border-left: none;
+    border-top: none;
+    border-bottom-right-radius: 8px;
+}
+
+.btikp-alert-overlay.show .btikp-alert {
+    transform: scale(1) translateY(0);
+}
+
+.btikp-alert-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    display: inline-block;
+    animation: alertIconPulse 2s ease-in-out infinite;
+}
+
+@keyframes alertIconPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.btikp-alert-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--bow-title);
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(255, 255, 255, 0.8);
+    letter-spacing: 0.5px;
+}
+
+.btikp-alert-message {
+    font-size: 1.05em;
+    line-height: 1.7;
+    margin-bottom: 28px;
+    color: var(--bow-text);
+}
+
+.btikp-alert-actions {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+/* Alert Colors */
+.btikp-alert-success .btikp-alert-icon { 
+    color: var(--bow-success);
+    filter: drop-shadow(0 4px 8px rgba(34, 139, 34, 0.3));
+}
+.btikp-alert-error .btikp-alert-icon,
+.btikp-alert-danger .btikp-alert-icon { 
+    color: var(--bow-danger);
+    filter: drop-shadow(0 4px 8px rgba(178, 34, 34, 0.3));
+}
+.btikp-alert-warning .btikp-alert-icon { 
+    color: var(--bow-warning);
+    filter: drop-shadow(0 4px 8px rgba(218, 165, 32, 0.3));
+}
+.btikp-alert-info .btikp-alert-icon { 
+    color: var(--bow-info);
+    filter: drop-shadow(0 4px 8px rgba(0, 128, 128, 0.3));
+}
+
+/* ================================================================== */
+/* == BUTTONS ======================================================= */
+/* ================================================================== */
+.btikp-btn {
+    border: 3px solid transparent;
+    border-radius: 8px;
+    padding: 12px 28px;
+    font-size: 0.98em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    background: var(--bow-border);
+    color: var(--bow-title);
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+    box-shadow: 
+        0 4px 8px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.btikp-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.5s, height 0.5s;
+}
+
+.btikp-btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.btikp-btn:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 
+        0 8px 16px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.btikp-btn:active {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 
+        0 4px 8px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.btikp-btn-secondary {
+    background: linear-gradient(135deg, var(--bow-secondary) 0%, #5a6c7d 100%);
+    border-color: var(--bow-secondary);
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.btikp-btn-success { 
+    background: linear-gradient(135deg, var(--bow-success) 0%, #1a6b1a 100%);
+    border-color: var(--bow-success);
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.btikp-btn-error, 
+.btikp-btn-danger { 
+    background: linear-gradient(135deg, var(--bow-danger) 0%, #8b1a1a 100%);
+    border-color: var(--bow-danger);
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.btikp-btn-warning { 
+    background: linear-gradient(135deg, var(--bow-warning) 0%, #b8860b 100%);
+    border-color: var(--bow-warning);
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.btikp-btn-info { 
+    background: linear-gradient(135deg, var(--bow-info) 0%, #006666 100%);
+    border-color: var(--bow-info);
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* ================================================================== */
+/* == LOADING ======================================================= */
+/* ================================================================== */
+.btikp-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bow-overlay);
+    backdrop-filter: blur(8px);
+    z-index: 10002;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.btikp-loading-overlay.show {
+    opacity: 1;
+}
+
+.btikp-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--bow-bg);
+    color: var(--bow-title);
+    padding: 32px 48px;
+    border-radius: 12px;
+    border: 4px solid var(--bow-wood-border);
+    box-shadow: 
+        var(--bow-shadow),
+        inset 0 2px 0 rgba(255, 255, 255, 0.5);
+    position: relative;
+}
+
+/* Decorative loading frame */
+.btikp-loading::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    border: 2px solid var(--bow-border);
+    border-radius: 8px;
+    pointer-events: none;
+}
+
+.btikp-loading-spinner {
+    border: 5px solid var(--bow-border);
+    border-top: 5px solid var(--bow-wood-border);
+    border-right: 5px solid var(--bow-wood-border);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: btikp-spin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+    margin-bottom: 18px;
+    box-shadow: 
+        0 0 0 3px rgba(139, 69, 19, 0.1),
+        inset 0 0 0 3px rgba(139, 69, 19, 0.05);
+}
+
+.btikp-loading-message {
+    font-size: 1.15em;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+@keyframes btikp-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ================================================================== */
+/* == RESPONSIVE ==================================================== */
+/* ================================================================== */
+@media (max-width: 480px) {
+    .btikp-notification-container {
+        width: calc(100% - 32px);
+        right: 16px;
+        left: 16px;
+    }
+    
+    .btikp-toast {
+        max-width: 100%;
+    }
+    
+    .btikp-alert {
+        width: calc(100% - 32px);
+        padding: 24px 20px;
+    }
+    
+    .btikp-alert-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btikp-btn {
+        width: 100%;
+        padding: 14px 20px;
+    }
+}
+
+/* ================================================================== */
+/* == DARK MODE SUPPORT (Optional) ================================== */
+/* ================================================================== */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bow-bg: #2d2416;
+        --bow-border: #5a4a3a;
+        --bow-wood-border: #a0622f;
+        --bow-text: #e8dcc8;
+        --bow-title: #f5e6d3;
+        --bow-overlay: rgba(20, 16, 12, 0.85);
+    }
+    
+    .btikp-toast::before {
+        background: 
+            repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(160, 98, 47, 0.05) 2px,
+                rgba(160, 98, 47, 0.05) 4px
+            );
+    }
+    
+    .btikp-toast-success {
+        background: linear-gradient(135deg, #2d2416 0%, #1a2d1a 100%);
+    }
+    
+    .btikp-toast-danger,
+    .btikp-toast-error {
+        background: linear-gradient(135deg, #2d2416 0%, #2d1a1a 100%);
+    }
+    
+    .btikp-toast-warning {
+        background: linear-gradient(135deg, #2d2416 0%, #2d2816 100%);
+    }
+    
+    .btikp-toast-info {
+        background: linear-gradient(135deg, #2d2416 0%, #1a2828 100%);
+    }
+}

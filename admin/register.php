@@ -10,25 +10,61 @@ if (isLoggedIn()) {
     redirect(ADMIN_URL);
 }
 
-$siteName   = getSetting('site_name', 'BTIKP Kalimantan Selatan');
-$siteLogo   = getSetting('site_logo');
+$siteName     = getSetting('site_name', 'BTIKP Kalimantan Selatan');
+$siteLogo     = getSetting('site_logo');
 $siteLogoText = getSetting('site_logo_text', 'BTIKP KALSEL');
 $showLogoText = getSetting('site_logo_show_text', '1');
-$siteFavicon = getSetting('site_favicon');
-$bgType     = getSetting('login_background_type', 'gradient');
-$bgImage    = getSetting('login_background_image');
-$bgGradient = getSetting('login_background_gradient', 'purple-pink');
-$bgColor    = getSetting('login_background_color', '#667eea');
+$siteFavicon  = getSetting('site_favicon');
+$bgType       = getSetting('login_background_type', 'gradient');
+$bgImage      = getSetting('login_background_image');
+$bgGradient   = getSetting('login_background_gradient', 'purple-pink');
+$bgColor      = getSetting('login_background_color', '#667eea');
 $bgOverlayText = trim(getSetting('login_background_overlay_text', ''));
 
-$validator  = null;
-$alertJS    = "";
+// ==================================================================
+// == [PERUBAHAN DIMULAI DI SINI] ==
+// Logika untuk memuat file Notifikasi/Alert dinamis
+// ==================================================================
+
+// 1. Dapatkan tema yang sedang aktif dari database
+$currentTheme = getSetting('notification_alert_theme', 'alecto-final-blow');
+
+// 2. Tentukan nama file CSS dan JS berdasarkan tema yang aktif
+switch ($currentTheme) {
+    case 'an-eye-for-an-eye':
+        $notificationCssFile = 'notifications_an_eye_for_an_eye.css';
+        $notificationJsFile = 'notifications_an_eye_for_an_eye.js';
+        break;
+    case 'throne-of-ruin':
+        $notificationCssFile = 'notifications_throne.css';
+        $notificationJsFile = 'notifications_throne.js';
+        break;
+    case 'hoki-crossbow-of-tang':
+        $notificationCssFile = 'notifications_crossbow.css';
+        $notificationJsFile = 'notifications_crossbow.js';
+        break;
+    case 'death-sonata':
+        $notificationCssFile = 'notifications_death_sonata.css';
+        $notificationJsFile = 'notifications_death_sonata.js';
+        break;
+    case 'alecto-final-blow':
+    default:
+        $notificationCssFile = 'notifications.css'; // File default (Alecto)
+        $notificationJsFile = 'notifications.js';  // File default (Alecto)
+        break;
+}
+// ==================================================================
+// == [PERUBAHAN SELESAI] ==
+// ==================================================================
+
+$validator   = null;
+$alertJS     = "";
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name            = clean($_POST['name'] ?? '');
-    $email           = clean($_POST['email'] ?? '');
-    $password        = $_POST['password'] ?? '';
-    $password_confirm= $_POST['password_confirm'] ?? '';
+    $name             = clean($_POST['name'] ?? '');
+    $email            = clean($_POST['email'] ?? '');
+    $password         = $_POST['password'] ?? '';
+    $password_confirm = $_POST['password_confirm'] ?? '';
 
     $validator = new Validator($_POST);
     $validator->required('name', 'Nama');
@@ -90,8 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/compiled/css/auth.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
 
-    <!-- Custom Notification Styles -->
-    <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/css/notifications.css?v=<?= time() ?>" />
+    <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/css/<?= $notificationCssFile ?>?v=<?= time() ?>" />
 </head>
 <body>
     <script src="<?= ADMIN_URL ?>assets/static/js/initTheme.js"></script>
@@ -184,7 +219,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script src="<?= ADMIN_URL ?>assets/static/js/components/dark.js"></script>
-    <script src="<?= ADMIN_URL ?>assets/js/notifications.js?v=<?= time() ?>"></script>
+    
+    <script src="<?= ADMIN_URL ?>assets/js/<?= $notificationJsFile ?>?v=<?= time() ?>"></script>
+    
     <?php if (!empty($alertJS)): ?>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
