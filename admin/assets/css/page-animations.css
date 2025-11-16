@@ -1,6 +1,6 @@
 /*
- * ====== SMOOTH PAGE ANIMATIONS & SAFE TRANSITION (v2) ======
- * Versi bersih tanpa perbaikan bug sidebar.
+ * ====== SMOOTH PAGE ANIMATIONS & SAFE TRANSITION (v3.1) ======
+ * Versi dengan perbaikan Scroll To Top yang hilang
  */
 
 /* 1. Animasi Masuk Halaman (Lebih Halus) */
@@ -83,4 +83,103 @@ html {
     perspective:1000px;
 }
 
-/* Blok CSS untuk perbaikan bug sidebar sudah dihapus dari sini */
+/* ====== SCROLL TO TOP BUTTON DESIGN (FIXED) ====== */
+.scroll-to-top-btn {
+    position: fixed !important;
+    bottom: 30px !important;
+    right: 30px !important;
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 50% !important;
+    background: linear-gradient(145deg, #435ebe, #3451b2) !important;
+    color: white !important;
+    border: none !important;
+    cursor: pointer !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+    z-index: 9999 !important;
+    box-shadow: 0 4px 12px rgba(67, 94, 190, 0.3) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.2rem !important;
+    transform: translateY(20px) !important;
+    overflow: hidden !important;
+}
+
+.scroll-to-top-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateX(-100%);
+    transition: transform 0.5s;
+}
+
+.scroll-to-top-btn:hover::before {
+    transform: translateX(0);
+}
+
+.scroll-to-top-btn i {
+    position: relative;
+    z-index: 1;
+    transition: transform 0.3s ease;
+}
+
+.scroll-to-top-btn:hover i {
+    transform: translateY(-3px);
+}
+
+.scroll-to-top-btn.show {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateY(0) !important;
+}
+
+.scroll-to-top-btn.hide {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transform: translateY(20px) !important;
+}
+
+.scroll-to-top-btn:hover {
+    background: linear-gradient(145deg, #3451b2, #2a4199) !important;
+    box-shadow: 0 6px 16px rgba(67, 94, 190, 0.4) !important;
+    transform: translateY(-5px) !important;
+}
+
+/* Dark mode support */
+[data-bs-theme="dark"] .scroll-to-top-btn {
+    background: linear-gradient(145deg, #5a6fc0, #4a5bb0) !important;
+    box-shadow: 0 4px 12px rgba(90, 111, 192, 0.3) !important;
+}
+
+[data-bs-theme="dark"] .scroll-to-top-btn:hover {
+    background: linear-gradient(145deg, #4a5bb0, #3a4a9f) !important;
+    box-shadow: 0 6px 16px rgba(90, 111, 192, 0.4) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .scroll-to-top-btn {
+        bottom: 20px !important;
+        right: 20px !important;
+        width: 45px !important;
+        height: 45px !important;
+        font-size: 1rem !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .scroll-to-top-btn {
+        bottom: 15px !important;
+        right: 15px !important;
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 0.9rem !important;
+    }
+}

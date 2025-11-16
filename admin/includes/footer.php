@@ -18,17 +18,20 @@
 
 // Map theme names to JS file names
  $themeFiles = [
-     'alecto-final-blow' => 'notifications.js',
-     'an-eye-for-an-eye' => 'notifications_an_eye_for_an_eye.js',
-     'throne-of-ruin' => 'notifications_throne.js',
-     'hoki-crossbow-of-tang' => 'notifications_crossbow.js',
-     'death-sonata' => 'notifications_death_sonata.js'
+    'alecto-final-blow' => 'notifications.js',
+    'an-eye-for-an-eye' => 'notifications_an_eye_for_an_eye.js',
+    'throne-of-ruin' => 'notifications_throne.js',
+    'hoki-crossbow-of-tang' => 'notifications_crossbow.js',
+    'death-sonata' => 'notifications_death_sonata.js'
 ];
 
 // Get current theme JS file or fallback to default
  $themeJsFile = $themeFiles[$notification_theme] ?? $themeFiles['alecto-final-blow'];
 ?>
-            </div> <footer>
+            </div> <!-- End #main-content -->
+            
+            <!-- Footer -->
+            <footer class="animate-on-scroll fade-in" data-delay="600">
                 <div class="container-fluid">
                     <div class="footer clearfix mb-0 text-muted">
                         <div class="float-start">
@@ -45,16 +48,19 @@
         </div>
     </div>
     
+    <!-- Mazer Core JS -->
     <script src="<?= ADMIN_URL ?>assets/static/js/components/dark.js"></script>
     <script src="<?= ADMIN_URL ?>assets/extensions/perfect-scrollbar/perfect-scrollbar.min.js"></script>
     <script src="<?= ADMIN_URL ?>assets/compiled/js/app.js"></script>
     
+    <!-- DYNAMIC NOTIFICATION THEME JAVASCRIPT -->
     <script src="<?= ADMIN_URL ?>assets/js/<?= $themeJsFile ?>?v=<?= time() ?>" 
             data-notification-theme="<?= $notification_theme ?>"></script>
     
+    <!-- PAGE ANIMATIONS JAVASCRIPT -->
+    <script src="<?= ADMIN_URL ?>assets/js/page-animations.js?v=<?= time() ?>"></script>
     
-    <script src="<?= ADMIN_URL ?>assets/js/page-animations.js"></script>
-
+    <!-- Auto show alert from PHP session (using custom toast) -->
     <?php if ($alert = getAlert()): ?>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -69,6 +75,7 @@
     </script>
     <?php endif; ?>
     
+    <!-- Additional Scripts from Pages -->
     <?php if (isset($additionalScripts)): ?>
         <?= $additionalScripts ?>
     <?php endif; ?>

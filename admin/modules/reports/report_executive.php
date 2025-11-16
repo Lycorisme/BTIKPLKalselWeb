@@ -1,7 +1,8 @@
 <?php
 /**
- * Report: Executive Summary (Simple Version)
- * Laporan ringkasan eksekutif sederhana dengan fokus 1 tabel
+ * Report: Laporan Harian (Executive Summary)
+ * Fokus pada ringkasan aktivitas global harian.
+ * Sesuai standar laporan executive (versi baru).
  */
 require_once '../../includes/auth_check.php';
 require_once '../../../core/Database.php';
@@ -13,77 +14,136 @@ if (!hasRole(['super_admin', 'admin'])) {
     redirect(ADMIN_URL);
 }
 
-$pageTitle = 'Laporan Executive Summary';
-$db = Database::getInstance()->getConnection();
+ $pageTitle = 'Laporan Harian';
+ $db = Database::getInstance()->getConnection();
 
-$exportPdf = $_GET['export_pdf'] ?? '';
+// Get filters - Default ke HARI INI
+ $today = date('Y-m-d');
+ $dateFrom = $_GET['date_from'] ?? $today;
+ $dateTo = $_GET['date_to'] ?? $today;
+ $actionType = $_GET['action_type'] ?? '';
+ $perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
+ $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+ $exportPdf = $_GET['export_pdf'] ?? '';
 
-// === MAIN DATA: Top Performing Posts dengan Detail Lengkap ===
-$mainDataStmt = $db->query("
-    SELECT 
-        p.id,
-        p.title,
-        p.view_count,
-        p.created_at,
-        c.name as category_name,
-        u.name as author_name,
-        u.role as author_role,
-        (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as likes,
-        (SELECT COUNT(*) FROM comments WHERE commentable_type = 'post' AND commentable_id = p.id AND status = 'approved') as comments,
-        ROUND(((SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) + 
-               (SELECT COUNT(*) FROM comments WHERE commentable_type = 'post' AND commentable_id = p.id AND status = 'approved')) 
-               / GREATEST(p.view_count, 1) * 100, 2) as engagement_rate
-    FROM posts p
-    LEFT JOIN post_categories c ON p.category_id = c.id
-    LEFT JOIN users u ON p.author_id = u.id
-    WHERE p.deleted_at IS NULL 
-    AND p.status = 'published'
-    ORDER BY p.view_count DESC
-    LIMIT 20
-");
-$mainData = $mainDataStmt->fetchAll();
+// Per page options
+ $perPageOptions = [10, 25, 50, 100, 200];
 
-// === SUMMARY STATISTICS ===
-$summaryStats = [
-    'total_posts' => 0,
-    'total_views' => 0,
-    'total_likes' => 0,
-    'total_comments' => 0,
-    'avg_engagement' => 0
+// Get action types for filter (dari activity_logs)
+ $actionTypesStmt = $db->query("SELECT DISTINCT action_type FROM activity_logs WHERE action_type IS NOT NULL AND action_type != '' ORDER BY action_type ASC");
+ $actionTypes = $actionTypesStmt->fetchAll(PDO::FETCH_COLUMN);
+
+// === SUMMARY STATISTICS (4 Kartu) - Berdasarkan Filter Tanggal ===
+ $summaryStats = [
+    'posts_today' => 0,
+    'views_today' => 0,
+    'downloads_today' => 0,
+    'messages_today' => 0,
 ];
 
-$statsStmt = $db->query("
-    SELECT 
-        COUNT(*) as total_posts,
-        SUM(view_count) as total_views
-    FROM posts 
-    WHERE deleted_at IS NULL AND status = 'published'
-");
-$stats = $statsStmt->fetch();
-$summaryStats['total_posts'] = $stats['total_posts'];
-$summaryStats['total_views'] = $stats['total_views'] ?? 0;
+// Build date-only params
+ $paramsDateOnly = [
+    ':date_from' => $dateFrom,
+    ':date_to' => $dateTo
+];
 
-$likesStmt = $db->query("SELECT COUNT(*) as total FROM post_likes");
-$summaryStats['total_likes'] = $likesStmt->fetch()['total'];
+// 1. Total Post Terbit
+ $postsSql = "SELECT COUNT(*) FROM posts WHERE status = 'published' AND DATE(published_at) >= :date_from AND DATE(published_at) <= :date_to";
+ $postsStmt = $db->prepare($postsSql);
+ $postsStmt->execute($paramsDateOnly);
+ $summaryStats['posts_today'] = $postsStmt->fetchColumn();
 
-$commentsStmt = $db->query("SELECT COUNT(*) as total FROM comments WHERE status = 'approved'");
-$summaryStats['total_comments'] = $commentsStmt->fetch()['total'];
+// 2. Total Views
+ $viewsSql = "SELECT COUNT(*) FROM page_views WHERE DATE(created_at) >= :date_from AND DATE(created_at) <= :date_to";
+ $viewsStmt = $db->prepare($viewsSql);
+ $viewsStmt->execute($paramsDateOnly);
+ $summaryStats['views_today'] = $viewsStmt->fetchColumn();
 
-$summaryStats['avg_engagement'] = $summaryStats['total_views'] > 0 ? 
-    round((($summaryStats['total_likes'] + $summaryStats['total_comments']) / $summaryStats['total_views']) * 100, 2) : 0;
+// 3. Total Download File
+ $downloadsSql = "SELECT COUNT(*) FROM activity_logs WHERE action_type = 'DOWNLOAD' AND DATE(created_at) >= :date_from AND DATE(created_at) <= :date_to";
+ $downloadsStmt = $db->prepare($downloadsSql);
+ $downloadsStmt->execute($paramsDateOnly);
+ $summaryStats['downloads_today'] = $downloadsStmt->fetchColumn();
 
-// Export PDF
+// 4. Total Pesan Masuk
+ $messagesSql = "SELECT COUNT(*) FROM contact_messages WHERE DATE(created_at) >= :date_from AND DATE(created_at) <= :date_to";
+ $messagesStmt = $db->prepare($messagesSql);
+ $messagesStmt->execute($paramsDateOnly);
+ $summaryStats['messages_today'] = $messagesStmt->fetchColumn();
+
+
+// === MAIN DATA (Activity Logs) - Based on Filters ===
+ $whereConditions = ["DATE(al.created_at) >= :date_from", "DATE(al.created_at) <= :date_to"];
+ $params = [
+    ':date_from' => $dateFrom,
+    ':date_to' => $dateTo
+];
+
+if ($actionType) {
+    $whereConditions[] = "al.action_type = :action_type";
+    $params[':action_type'] = $actionType;
+}
+
+ $whereClause = implode(' AND ', $whereConditions);
+
+// Count total items
+ $countSql = "SELECT COUNT(*) as total FROM activity_logs al WHERE $whereClause";
+ $countStmt = $db->prepare($countSql);
+ $countStmt->execute($params);
+ $totalItems = $countStmt->fetch()['total'];
+ $totalPages = ceil($totalItems / $perPage);
+
+// Calculate offset for pagination
+ $offset = ($page - 1) * $perPage;
+
+// Get data for main table
+ $sql = "
+    SELECT al.* FROM activity_logs al
+    WHERE $whereClause
+    ORDER BY al.created_at DESC
+    LIMIT :limit OFFSET :offset
+";
+
+ $mainDataStmt = $db->prepare($sql);
+foreach ($params as $key => $value) {
+    $mainDataStmt->bindValue($key, $value);
+}
+ $mainDataStmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+ $mainDataStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+ $mainDataStmt->execute();
+ $mainData = $mainDataStmt->fetchAll();
+
+// Export PDF (export all data without pagination)
 if ($exportPdf === '1') {
+    // Get all data for PDF
+    $pdfSql = "
+        SELECT al.* FROM activity_logs al
+        WHERE $whereClause
+        ORDER BY al.created_at DESC
+    ";
+    $pdfDataStmt = $db->prepare($pdfSql);
+    $pdfDataStmt->execute($params);
+    $mainData = $pdfDataStmt->fetchAll(); // Override mainData for PDF export
+    
+    // Siapkan variabel untuk template
     $siteName = getSetting('site_name', 'BTIKP Kalimantan Selatan');
     $contactPhone = getSetting('contact_phone', '');
     $contactEmail = getSetting('contact_email', '');
     $contactAddress = getSetting('contact_address', '');
     $siteLogo = getSetting('site_logo', '');
 
+    // Buat Filter Text untuk PDF
+    $filterInfo = [];
+    $filterInfo[] = "Dari: " . formatTanggal($dateFrom, 'd/m/Y');
+    $filterInfo[] = "Sampai: " . formatTanggal($dateTo, 'd/m/Y');
+    if ($actionType) $filterInfo[] = "Aksi: " . $actionType;
+    $filterText = implode(' | ', $filterInfo);
+
+
     $mpdf = new \Mpdf\Mpdf([
         'mode' => 'utf-8',
         'format' => 'A4',
-        'orientation' => 'L', // Landscape untuk tabel lebar
+        'orientation' => 'L', // Landscape
         'margin_left' => 15,
         'margin_right' => 15,
         'margin_top' => 10,
@@ -97,7 +157,7 @@ if ($exportPdf === '1') {
         <table width="100%" style="border-top: 1px solid #000; padding-top: 5px; font-size: 9pt;">
             <tr>
                 <td width="70%" style="text-align: left;">
-                    ' . htmlspecialchars($siteName) . ' - Executive Summary Report
+                    ' . htmlspecialchars($siteName) . ' - Laporan Harian
                 </td>
                 <td width="30%" style="text-align: right;">
                     Halaman {PAGENO} dari {nbpg}
@@ -107,11 +167,12 @@ if ($exportPdf === '1') {
     $mpdf->SetHTMLFooter($footer);
 
     ob_start();
-    include dirname(__FILE__) . '/templates/laporan_executive_simple_pdf.php';
+    // Menggunakan template PDF yang di-override
+    include dirname(__FILE__) . '/templates/laporan_executive_pdf.php';
     $html = ob_get_clean();
 
     $mpdf->WriteHTML($html);
-    $mpdf->Output('Executive_Summary_' . date('Ymd_His') . '.pdf', 'I');
+    $mpdf->Output('Laporan_Harian_' . date('Ymd_His') . '.pdf', 'I');
     exit;
 }
 
@@ -123,14 +184,14 @@ include '../../includes/header.php';
         <div class="row">
             <div class="col-12 col-md-6">
                 <h3><?= $pageTitle ?></h3>
-                <p class="text-subtitle text-muted">Laporan performa website ringkas</p>
+                <p class="text-subtitle text-muted">Ringkasan global aktivitas utama portal.</p>
             </div>
             <div class="col-12 col-md-6">
                 <nav aria-label="breadcrumb" class="breadcrumb-header float-start float-lg-end">
                     <ol class="breadcrumb">
                         <li class="breadcrumb-item"><a href="<?= ADMIN_URL ?>">Dashboard</a></li>
                         <li class="breadcrumb-item">Laporan</li>
-                        <li class="breadcrumb-item active">Executive Summary</li>
+                        <li class="breadcrumb-item active">Laporan Harian</li>
                     </ol>
                 </nav>
             </div>
@@ -138,126 +199,192 @@ include '../../includes/header.php';
     </div>
 
     <section class="section">
-        <!-- Export Button & Summary -->
-        <div class="card mb-3">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                        <h6 class="mb-1">Laporan Executive Summary</h6>
-                        <small class="text-muted">Tanggal Generate: <?= date('d F Y, H:i') ?> WIB</small>
+        <div class="row mb-3">
+            <div class="col-6 col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h6 class="text-white mb-2"><i class="bi bi-file-earmark-post"></i> Post Terbit</h6>
+                        <h2 class="mb-0"><?= formatNumber($summaryStats['posts_today']) ?></h2>
                     </div>
-                    <a href="?export_pdf=1" class="btn btn-danger" target="_blank">
-                        <i class="bi bi-file-pdf"></i> Export PDF
-                    </a>
                 </div>
-
-                <!-- Quick Stats -->
-                <div class="row text-center">
-                    <div class="col">
-                        <h4 class="mb-0 text-primary"><?= formatNumber($summaryStats['total_posts']) ?></h4>
-                        <small class="text-muted">Total Posts</small>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h6 class="text-white mb-2"><i class="bi bi-eye"></i> Total Views</h6>
+                        <h2 class="mb-0"><?= formatNumber($summaryStats['views_today']) ?></h2>
                     </div>
-                    <div class="col">
-                        <h4 class="mb-0 text-success"><?= formatNumber($summaryStats['total_views']) ?></h4>
-                        <small class="text-muted">Total Views</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h6 class="text-white mb-2"><i class="bi bi-download"></i> Total Download</h6>
+                        <h2 class="mb-0"><?= formatNumber($summaryStats['downloads_today']) ?></h2>
                     </div>
-                    <div class="col">
-                        <h4 class="mb-0 text-danger"><?= formatNumber($summaryStats['total_likes']) ?></h4>
-                        <small class="text-muted">Total Likes</small>
-                    </div>
-                    <div class="col">
-                        <h4 class="mb-0 text-info"><?= formatNumber($summaryStats['total_comments']) ?></h4>
-                        <small class="text-muted">Total Comments</small>
-                    </div>
-                    <div class="col">
-                        <h4 class="mb-0 text-warning"><?= $summaryStats['avg_engagement'] ?>%</h4>
-                        <small class="text-muted">Avg. Engagement</small>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h6 class="text-white mb-2"><i class="bi bi-envelope"></i> Pesan Masuk</h6>
+                        <h2 class="mb-0"><?= formatNumber($summaryStats['messages_today']) ?></h2>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Main Table: Top Performing Posts -->
-        <div class="card">
+        <div class="card mb-3">
             <div class="card-header">
-                <h5 class="card-title mb-0">Top 20 Performing Posts - Detail Report</h5>
+                <h5 class="card-title mb-0">Filter Laporan</h5>
+            </div>
+            <div class="card-body">
+                <form method="GET" action="" class="row g-2 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">Tanggal Dari</label>
+                        <input type="date" name="date_from" class="form-control" value="<?= htmlspecialchars($dateFrom) ?>">
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">Tanggal Sampai</label>
+                        <input type="date" name="date_to" class="form-control" value="<?= htmlspecialchars($dateTo) ?>">
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <label class="form-label">Tipe Aksi</label>
+                        <select name="action_type" class="form-select">
+                            <option value="">-- Semua --</option>
+                            <?php foreach ($actionTypes as $type): ?>
+                                <option value="<?= $type ?>" <?= $actionType == $type ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($type) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-1">
+                        <label class="form-label">Per Hal</label>
+                        <select name="per_page" class="form-select">
+                            <?php foreach ($perPageOptions as $n): ?>
+                                <option value="<?= $n ?>"<?= $perPage == $n ? ' selected' : '' ?>><?= $n ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-1">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                    </div>
+                </form>
+                <?php if ($dateFrom != $today || $dateTo != $today || $actionType): ?>
+                    <div class="mt-2">
+                        <a href="?" class="btn btn-sm btn-secondary">
+                            <i class="bi bi-x-circle"></i> Reset Filter
+                        </a>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-column flex-md-row gap-2">
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">Detail Log Aktivitas</h6>
+                        <small class="text-muted">Tanggal Generate: <?= date('d F Y, H:i') ?> WIB</small>
+                        <?php if ($dateFrom || $dateTo || $actionType): ?>
+                            <br><span class="badge bg-info mt-1">Filter Aktif</span>
+                        <?php endif; ?>
+                    </div>
+
+                    <a href="?export_pdf=1<?= $dateFrom ? '&date_from='.$dateFrom : '' ?><?= $dateTo ? '&date_to='.$dateTo : '' ?><?= $actionType ? '&action_type='.$actionType : '' ?>"
+                       class="btn btn-danger flex-shrink-0"
+                       target="_blank">
+                        <i class="bi bi-file-pdf"></i> Export PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header border-bottom-0">
+                <h5 class="card-title mb-0">
+                    Log Aktivitas
+                    <span class="badge bg-primary"><?= $totalItems ?> Data</span>
+                </h5>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
                             <tr>
-                                <th>Judul Post</th>
-                                <th>Kategori</th>
-                                <th>Penulis</th>
-                                <th>Role</th>
-                                <th>Views</th>
-                                <th>Likes</th>
-                                <th>Comments</th>
-                                <th>Engagement</th>
-                                <th>Tanggal</th>
+                                <th style="width: 50px;">No</th>
+                                <th>Waktu</th>
+                                <th>User</th>
+                                <th>Aksi</th>
+                                <th>Tipe</th>
+                                <th>Deskripsi</th>
+                                <th>IP</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if (empty($mainData)): ?>
                                 <tr>
-                                    <td colspan="9" class="text-center text-muted py-4">Tidak ada data</td>
+                                    <td colspan="7" class="text-center text-muted py-4">Tidak ada data</td>
                                 </tr>
                             <?php else: ?>
-                                <?php foreach ($mainData as $row): ?>
+                                <?php 
+                                $no = $offset + 1; 
+                                foreach ($mainData as $row): 
+                                ?>
                                     <tr>
+                                        <td class="text-center"><?= $no ?></td>
+                                        <td><small><?= formatTanggal($row['created_at'], 'd/m/Y H:i') ?></small></td>
+                                        <td><?= htmlspecialchars($row['user_name'] ?? 'Guest') ?></td>
                                         <td>
-                                            <strong><?= htmlspecialchars($row['title']) ?></strong>
+                                            <span class="badge bg-light-primary"><?= htmlspecialchars($row['action_type']) ?></span>
                                         </td>
-                                        <td>
-                                            <span class="badge bg-light text-dark">
-                                                <?= htmlspecialchars($row['category_name']) ?>
-                                            </span>
-                                        </td>
-                                        <td><?= htmlspecialchars($row['author_name']) ?></td>
-                                        <td>
-                                            <span class="badge bg-secondary">
-                                                <?= ucfirst($row['author_role']) ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-primary">
-                                                <?= formatNumber($row['view_count']) ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-danger">
-                                                <?= formatNumber($row['likes']) ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-info">
-                                                <?= formatNumber($row['comments']) ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-success">
-                                                <?= $row['engagement_rate'] ?>%
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <small><?= formatTanggal($row['created_at'], 'd/m/Y') ?></small>
-                                        </td>
+                                        <td><?= htmlspecialchars($row['model_type'] ?? '-') ?></td>
+                                        <td><?= htmlspecialchars($row['description']) ?></td>
+                                        <td><?= htmlspecialchars($row['ip_address']) ?></td>
                                     </tr>
+                                    <?php $no++; ?>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
 
-                <div class="mt-3 text-muted">
-                    <small>
-                        <strong>Keterangan:</strong><br>
-                        Engagement Rate = (Likes + Comments) / Views × 100%<br>
-                        Data diurutkan berdasarkan jumlah views tertinggi<br>
-                        Hanya menampilkan post dengan status "published"
-                    </small>
-                </div>
+                <?php if ($totalItems > 0): ?>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
+                        <div class="flex-grow-1">
+                            <small class="text-muted">
+                                Halaman <?= $page ?> dari <?= $totalPages ?> · Menampilkan <?= count($mainData) ?> dari <?= $totalItems ?> data
+                            </small>
+                        </div>
+                        <nav aria-label="Page navigation" class="flex-shrink-0">
+                            <ul class="pagination mb-0">
+                                <li class="page-item<?= $page <= 1 ? ' disabled' : '' ?>">
+                                    <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                                <?php
+                                $from = max(1, $page - 2);
+                                $to = min($totalPages, $page + 2);
+                                for ($i = $from; $i <= $to; $i++): ?>
+                                    <li class="page-item<?= $i == $page ? ' active' : '' ?>">
+                                        <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>">
+                                            <?= $i ?>
+                                        </a>
+                                    </li>
+                                <?php endfor; ?>
+                                <li class="page-item<?= $page >= $totalPages ? ' disabled' : '' ?>">
+                                    <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </section>

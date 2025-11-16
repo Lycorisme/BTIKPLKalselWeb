@@ -1,12 +1,12 @@
 <?php
 /**
- * PDF Template: Laporan Services
- * Design clean black & white - Portrait
+ * PDF Template: Laporan Layanan
+ * Sesuai standar laporan executive (Landscape A4)
  */
 
 // Convert logo to base64
 $logoBase64 = '';
-if ($siteLogo && uploadExists($siteLogo)) {
+if ($siteLogo && function_exists('uploadExists') && uploadExists($siteLogo)) {
     $logoPath = uploadPath($siteLogo);
     if (file_exists($logoPath)) {
         $logoData = file_get_contents($logoPath);
@@ -14,185 +14,227 @@ if ($siteLogo && uploadExists($siteLogo)) {
         $logoBase64 = 'data:image/' . $logoExt . ';base64,' . base64_encode($logoData);
     }
 }
+
+// Hitung total untuk footer
+$total_views_pdf = array_sum(array_column($mainData, 'total_views'));
+$total_active = count(array_filter($mainData, fn($row) => $row['status'] == 'published'));
+
 ?>
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<style>
-    body {
-        font-family: "Cambria", serif;
-        font-size: 10pt;
-        color: #000;
-        margin: 0;
-        padding: 0;
-    }
-    .header {
-        width: 100%;
-        border-bottom: 2px solid #000;
-        padding-bottom: 10px;
-        margin-bottom: 20px;
-    }
-    .header-table {
-        width: 100%;
-    }
-    .header-logo {
-        width: 80px;
-        vertical-align: middle;
-    }
-    .header-info {
-        text-align: center;
-        vertical-align: middle;
-    }
-    .header-title {
-        font-size: 14pt;
-        font-weight: bold;
-        text-transform: uppercase;
-        margin-bottom: 3px;
-    }
-    .header-contact {
-        font-size: 9pt;
-        line-height: 1.4;
-    }
-    h1 {
-        text-align: center;
-        font-size: 14pt;
-        font-weight: bold;
-        text-transform: uppercase;
-        margin: 20px 0 5px 0;
-        letter-spacing: 1px;
-    }
-    h2 {
-        font-size: 11pt;
-        font-weight: bold;
-        margin-top: 20px;
-        margin-bottom: 10px;
-        border-bottom: 1px solid #000;
-        padding-bottom: 3px;
-    }
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 10px;
-    }
-    table.data-table {
-        border: 1px solid #000;
-    }
-    table.data-table th {
-        background-color: #f0f0f0;
-        padding: 8px 5px;
-        text-align: left;
-        border: 1px solid #000;
-        font-weight: bold;
-        font-size: 9pt;
-    }
-    table.data-table td {
-        padding: 6px 5px;
-        border: 1px solid #000;
-        font-size: 9pt;
-    }
-    .stats-table {
-        width: 100%;
-        margin: 15px 0;
-    }
-    .stats-table td {
-        padding: 10px;
-        text-align: center;
-        border: 1px solid #000;
-        background-color: #f9f9f9;
-    }
-    .stats-label {
-        font-size: 8pt;
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
-    .stats-value {
-        font-size: 16pt;
-        font-weight: bold;
-    }
-    .text-center {
-        text-align: center;
-    }
-</style>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: "Cambria", serif;
+            font-size: 9pt;
+            color: #000;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Header dengan Logo di Atas */
+        .header {
+            width: 100%;
+            text-align: center;
+            border-bottom: 3px solid #000;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .header-logo {
+            margin-bottom: 10px;
+        }
+        
+        .header-logo img {
+            height: 60px;
+            max-width: 150px;
+        }
+        
+        .header-title {
+            font-size: 16pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+        
+        .header-contact {
+            font-size: 9pt;
+            line-height: 1.5;
+            color: #333;
+        }
+        
+        /* Title */
+        h1 {
+            text-align: center;
+            font-size: 18pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 20px 0 5px 0;
+            letter-spacing: 2px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            font-size: 10pt;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        /* Main Table */
+        h2 {
+            font-size: 12pt;
+            font-weight: bold;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #000;
+            margin-top: 10px;
+        }
+        
+        table.data-table th {
+            background-color: #e0e0e0;
+            padding: 8px 4px;
+            text-align: center;
+            border: 1px solid #000;
+            font-weight: bold;
+            font-size: 8pt;
+            text-transform: uppercase;
+        }
+        
+        table.data-table td {
+            padding: 6px 4px;
+            border: 1px solid #000;
+            font-size: 8pt;
+            vertical-align: middle;
+        }
+        
+        table.data-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        table.data-table tfoot {
+            background-color: #d0d0d0;
+            font-weight: bold;
+        }
+         table.data-table tfoot th {
+             background-color: #d0d0d0;
+             padding: 8px 4px;
+             border: 1px solid #000;
+        }
+        
+        /* Utilities */
+        .text-center {
+            text-align: center;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .text-left {
+            text-align: left;
+        }
+        .text-success {
+            color: #198754;
+        }
+        .text-secondary {
+            color: #6c757d;
+        }
+
+    </style>
 </head>
 <body>
     <div class="header">
-        <table class="header-table">
-            <tr>
-                <td class="header-logo">
-                    <?php if ($logoBase64): ?>
-                        <img src="<?= $logoBase64 ?>" style="height: 60px;">
-                    <?php endif; ?>
-                </td>
-                <td class="header-info">
-                    <div class="header-title"><?= strtoupper($siteName) ?></div>
-                    <div class="header-contact">
-                        <?php if ($contactAddress): ?>
-                            <?= htmlspecialchars($contactAddress) ?><br>
-                        <?php endif; ?>
-                        <?php if ($contactPhone): ?>
-                            Telp: <?= htmlspecialchars($contactPhone) ?>
-                        <?php endif; ?>
-                        <?php if ($contactPhone && $contactEmail): ?>
-                            |
-                        <?php endif; ?>
-                        <?php if ($contactEmail): ?>
-                            Email: <?= htmlspecialchars($contactEmail) ?>
-                        <?php endif; ?>
-                    </div>
-                </td>
-                <td style="width: 80px;"></td>
-            </tr>
-        </table>
+        <?php if ($logoBase64): ?>
+            <div class="header-logo">
+                <img src="<?= $logoBase64 ?>" alt="Logo" style="height: 60px; max-width: 150px;">
+            </div>
+        <?php endif; ?>
+        
+        <div class="header-title"><?= strtoupper($siteName) ?></div>
+        <div class="header-contact">
+            <?php if ($contactAddress): ?>
+                <?= htmlspecialchars($contactAddress) ?><br>
+            <?php endif; ?>
+            <?php if ($contactPhone): ?>
+                Telp: <?= htmlspecialchars($contactPhone) ?>
+            <?php endif; ?>
+            <?php if ($contactPhone && $contactEmail): ?>
+                 | 
+            <?php endif; ?>
+            <?php if ($contactEmail): ?>
+                Email: <?= htmlspecialchars($contactEmail) ?>
+            <?php endif; ?>
+        </div>
     </div>
-    <h1>LAPORAN DATA LAYANAN</h1>
-    <h2>RINGKASAN STATISTIK</h2>
-    <table class="stats-table">
-        <tr>
-            <td>
-                <div class="stats-label">TOTAL LAYANAN</div>
-                <div class="stats-value"><?= formatNumber($stats['total']) ?></div>
-            </td>
-            <td>
-                <div class="stats-label">PUBLISHED</div>
-                <div class="stats-value"><?= formatNumber($stats['published']) ?></div>
-            </td>
-            <td>
-                <div class="stats-label">DRAFT</div>
-                <div class="stats-value"><?= formatNumber($stats['draft']) ?></div>
-            </td>
-            <td>
-                <div class="stats-label">ARCHIVED</div>
-                <div class="stats-value"><?= formatNumber($stats['archived']) ?></div>
-            </td>
-        </tr>
-    </table>
-    <h2>DAFTAR LAYANAN</h2>
+    
+    <h1>Laporan Layanan</h1>
+    <div class="subtitle">
+        Tanggal Cetak: <?= date('d F Y, H:i') ?> WIB
+    </div>
+    
+    <h2 style="border-bottom: none; padding-bottom: 2px;">Data Layanan (Total: <?= count($mainData) ?> Data)</h2>
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width: 5%;">No</th>
-                <th style="width: 45%;">Judul Layanan</th>
+                <th style="width: 4%;">No</th>
+                <th style="width: 40%;">Judul Layanan</th>
                 <th style="width: 12%;">Status</th>
-                <th style="width: 13%;">Tanggal</th>
+                <th style="width: 14%;">Total Views</th>
+                <th style="width: 15%;">Tgl Dibuat</th>
+                <th style="width: 15%;">Update Terakhir</th>
             </tr>
         </thead>
         <tbody>
-            <?php if (empty($services)): ?>
+            <?php if (empty($mainData)): ?>
                 <tr>
-                    <td colspan="4" class="text-center" style="padding: 20px;">Tidak ada data layanan</td>
+                    <td colspan="6" class="text-center" style="padding: 20px;">Tidak ada data layanan</td>
                 </tr>
             <?php else: ?>
-                <?php $no = 1; foreach ($services as $service): ?>
+                <?php $no = 1; foreach ($mainData as $row): ?>
                     <tr>
-                        <td class="text-center"><?= $no++ ?></td>
-                        <td><?= htmlspecialchars($service['title']) ?></td>
-                        <td class="text-center"><?= ucfirst($service['status']) ?></td>
-                        <td class="text-center"><?= formatTanggal($service['created_at'], 'd/m/Y') ?></td>
+                        <td class="text-center"><?= $no ?></td>
+                        <td class="text-left">
+                            <strong><?= htmlspecialchars($row['title']) ?></strong>
+                        </td>
+                        <td class="text-center">
+                            <?php if ($row['status'] == 'published'): ?>
+                                <span class="text-success">Published</span>
+                            <?php else: ?>
+                                <span class="text-secondary">Draft</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-center"><strong><?= formatNumber($row['total_views']) ?></strong></td>
+                        <td class="text-center"><?= formatTanggal($row['created_at'], 'd/m/Y') ?></td>
+                        <td class="text-center"><?= formatTanggal($row['updated_at'], 'd/m/Y H:i') ?></td>
                     </tr>
+                    <?php $no++; ?>
                 <?php endforeach; ?>
             <?php endif; ?>
         </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="3" class="text-right">TOTAL LAYANAN (SESUAI FILTER):</th>
+                <th colspan="3" class="text-left"><?= formatNumber(count($mainData)) ?></th>
+            </tr>
+             <tr>
+                <th colspan="3" class="text-right">TOTAL AKTIF (DARI HASIL):</th>
+                <th colspan="3" class="text-left"><?= formatNumber($total_active) ?></th>
+            </tr>
+            <tr>
+                <th colspan="3" class="text-right">TOTAL VIEWS (DARI HASIL):</th>
+                <th colspan="3" class="text-left"><?= formatNumber($total_views_pdf) ?></th>
+            </tr>
+        </tfoot>
     </table>
 </body>
 </html>

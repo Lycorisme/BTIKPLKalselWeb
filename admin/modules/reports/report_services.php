@@ -1,122 +1,179 @@
 <?php
 /**
- * Report: Services
- * Services report with statistics and PDF export (No view_count, no is_featured)
+ * Report: Laporan Layanan
+ * Menampilkan data statistik dan daftar layanan.
  */
-
 require_once '../../includes/auth_check.php';
 require_once '../../../core/Database.php';
 require_once '../../../core/Helper.php';
-
-// Import mPDF
 require_once '../../../vendor/autoload.php';
 
-$pageTitle = 'Laporan Layanan';
-
-$db = Database::getInstance()->getConnection();
-
-// Get filters
-$status = $_GET['status'] ?? '';
-$dateFrom = $_GET['date_from'] ?? '';
-$dateTo = $_GET['date_to'] ?? '';
-$exportPdf = $_GET['export_pdf'] ?? '';
-
-// Build query without join user (author_id tidak ada)
-$sql = "SELECT 
-            s.*
-        FROM services s
-        WHERE s.deleted_at IS NULL";
-
-$params = [];
-
-if ($status) {
-    $sql .= " AND s.status = ?";
-    $params[] = $status;
+if (!hasRole(['super_admin', 'admin'])) {
+    setAlert('danger', 'Anda tidak memiliki akses ke halaman ini');
+    redirect(ADMIN_URL);
 }
 
+ $pageTitle = 'Laporan Layanan';
+ $db = Database::getInstance()->getConnection();
+
+// Get filters
+ $dateFrom = $_GET['date_from'] ?? ''; // Filter by created_at
+ $dateTo = $_GET['date_to'] ?? ''; // Filter by created_at
+ $statusFilter = $_GET['status'] ?? '';
+ $titleFilter = $_GET['title'] ?? '';
+ $perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
+ $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+ $exportPdf = $_GET['export_pdf'] ?? '';
+
+// Per page options
+ $perPageOptions = [10, 25, 50, 100, 200];
+
+// === SUMMARY STATISTICS (4 Kartu) - Global Stats ===
+ $summaryStats = [
+    'total_active_services' => 0,
+    'busiest_service_name' => 'N/A',
+    'busiest_service_views' => 0,
+    'total_views' => 0,
+    'latest_update_name' => 'N/A',
+];
+
+// Card 1: Total layanan aktif
+ $summaryStats['total_active_services'] = $db->query("SELECT COUNT(*) FROM services WHERE deleted_at IS NULL AND status = 'published'")->fetchColumn();
+
+// Card 2: Layanan paling ramai (views terbanyak)
+ $busiestSql = "
+    SELECT s.title, COUNT(pv.id) as view_count
+    FROM services s
+    JOIN page_views pv ON s.id = pv.viewable_id AND pv.viewable_type = 'service'
+    WHERE s.deleted_at IS NULL
+    GROUP BY s.id, s.title
+    ORDER BY view_count DESC
+    LIMIT 1
+";
+ $busiestService = $db->query($busiestSql)->fetch();
+ if ($busiestService) {
+    $summaryStats['busiest_service_name'] = $busiestService['title'];
+    $summaryStats['busiest_service_views'] = $busiestService['view_count'];
+ }
+
+// Card 3: Total views seluruh layanan
+ $summaryStats['total_views'] = $db->query("SELECT COUNT(*) FROM page_views WHERE viewable_type = 'service'")->fetchColumn();
+
+// Card 4: Layanan update terbaru
+ $latestService = $db->query("SELECT title FROM services WHERE deleted_at IS NULL ORDER BY updated_at DESC LIMIT 1")->fetch();
+ if ($latestService) {
+    $summaryStats['latest_update_name'] = $latestService['title'];
+ }
+
+
+// === MAIN DATA (Tabel Utama dengan Filter) ===
+ $whereConditions = ["s.deleted_at IS NULL"];
+ $params = [];
+
 if ($dateFrom) {
-    $sql .= " AND DATE(s.created_at) >= ?";
-    $params[] = $dateFrom;
+    $whereConditions[] = "DATE(s.created_at) >= :date_from";
+    $params[':date_from'] = $dateFrom;
 }
 
 if ($dateTo) {
-    $sql .= " AND DATE(s.created_at) <= ?";
-    $params[] = $dateTo;
+    $whereConditions[] = "DATE(s.created_at) <= :date_to";
+    $params[':date_to'] = $dateTo;
 }
 
-$sql .= " ORDER BY s.created_at DESC";
-
-$stmt = $db->prepare($sql);
-$stmt->execute($params);
-$services = $stmt->fetchAll();
-
-// Statistics
-$stats = [
-    'total' => count($services),
-    'published' => 0,
-    'draft' => 0,
-    'archived' => 0
-];
-
-foreach ($services as $service) {
-    if (isset($stats[$service['status']])) {
-        $stats[$service['status']]++;
-    }
+if ($statusFilter) {
+    $whereConditions[] = "s.status = :status";
+    $params[':status'] = $statusFilter;
 }
 
-// Recent services (limit 10)
-$recentStmt = $db->query("
-    SELECT title, created_at
-    FROM services
-    WHERE deleted_at IS NULL
-    ORDER BY created_at DESC
-    LIMIT 10
-");
-$recentServices = $recentStmt->fetchAll();
+if ($titleFilter) {
+    $whereConditions[] = "s.title LIKE :title";
+    $params[':title'] = "%$titleFilter%";
+}
 
-// Export to PDF
+ $whereClause = implode(' AND ', $whereConditions);
+
+// Hitung total items untuk paginasi
+ $countSql = "SELECT COUNT(s.id) FROM services s WHERE $whereClause";
+ $countStmt = $db->prepare($countSql);
+ $countStmt->execute($params);
+ $totalItems = $countStmt->fetchColumn();
+ $totalPages = ceil($totalItems / $perPage);
+ $offset = ($page - 1) * $perPage;
+
+// Get data for main table
+ $sql = "
+    SELECT 
+        s.id, s.title, s.status, s.updated_at, s.created_at,
+        (SELECT COUNT(*) FROM page_views pv WHERE pv.viewable_type = 'service' AND pv.viewable_id = s.id) as total_views
+    FROM services s
+    WHERE $whereClause
+    ORDER BY s.updated_at DESC
+    LIMIT :limit OFFSET :offset
+";
+
+ $mainDataStmt = $db->prepare($sql);
+foreach ($params as $key => $value) {
+    $mainDataStmt->bindValue($key, $value);
+}
+ $mainDataStmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+ $mainDataStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+ $mainDataStmt->execute();
+ $mainData = $mainDataStmt->fetchAll();
+
+// Export PDF (export all data without pagination)
 if ($exportPdf === '1') {
-    try {
-        $siteName = getSetting('site_name', 'BTIKP Kalimantan Selatan');
-        $siteTagline = getSetting('site_tagline', '');
-        $contactPhone = getSetting('contact_phone', '');
-        $contactEmail = getSetting('contact_email', '');
-        $contactAddress = getSetting('contact_address', '');
-        $siteLogo = getSetting('site_logo', '');
-        
-        $mpdf = new \Mpdf\Mpdf([
-            'mode' => 'utf-8',
-            'format' => 'A4',
-            'margin_left' => 15,
-            'margin_right' => 15,
-            'margin_top' => 10,
-            'margin_bottom' => 20,
-            'margin_header' => 0,
-            'margin_footer' => 10,
-        ]);
-        $mpdf->SetDefaultFont('cambria');
-        
-        $footer = '
+    
+    $pdfSql = "
+        SELECT 
+            s.id, s.title, s.status, s.updated_at, s.created_at,
+            (SELECT COUNT(*) FROM page_views pv WHERE pv.viewable_type = 'service' AND pv.viewable_id = s.id) as total_views
+        FROM services s
+        WHERE $whereClause
+        ORDER BY s.updated_at DESC
+    ";
+    $pdfDataStmt = $db->prepare($pdfSql);
+    $pdfDataStmt->execute($params);
+    $mainData = $pdfDataStmt->fetchAll(); // Override mainData for PDF export
+    
+    $siteName = getSetting('site_name', 'BTIKP Kalimantan Selatan');
+    $contactPhone = getSetting('contact_phone', '');
+    $contactEmail = getSetting('contact_email', '');
+    $contactAddress = getSetting('contact_address', '');
+    $siteLogo = getSetting('site_logo', '');
+
+    $mpdf = new \Mpdf\Mpdf([
+        'mode' => 'utf-8',
+        'format' => 'A4',
+        'orientation' => 'L', // Landscape
+        'margin_left' => 15,
+        'margin_right' => 15,
+        'margin_top' => 10,
+        'margin_bottom' => 20,
+        'margin_header' => 0,
+        'margin_footer' => 10,
+    ]);
+    $mpdf->SetDefaultFont('cambria');
+
+    $footer = '
         <table width="100%" style="border-top: 1px solid #000; padding-top: 5px; font-size: 9pt;">
             <tr>
-                <td width="70%" style="text-align: left;">' . htmlspecialchars($siteName) . '</td>
-                <td width="30%" style="text-align: right;">Halaman {PAGENO} dari {nbpg}</td>
+                <td width="70%" style="text-align: left;">
+                    ' . htmlspecialchars($siteName) . ' - Laporan Layanan
+                </td>
+                <td width="30%" style="text-align: right;">
+                    Halaman {PAGENO} dari {nbpg}
+                </td>
             </tr>
         </table>';
-        $mpdf->SetHTMLFooter($footer);
-        
-        ob_start();
-        include __DIR__ . '/templates/laporan_services_pdf.php';
-        $html = ob_get_clean();
-        
-        $mpdf->WriteHTML($html);
-        $mpdf->Output('Laporan_Layanan_' . date('Ymd_His') . '.pdf', 'I');
-        exit;
-        
-    } catch (\Mpdf\MpdfException $e) {
-        error_log($e->getMessage());
-        setAlert('danger', 'Gagal generate PDF: ' . $e->getMessage());
-    }
+    $mpdf->SetHTMLFooter($footer);
+
+    ob_start();
+    include dirname(__FILE__) . '/templates/laporan_services_pdf.php';
+    $html = ob_get_clean();
+
+    $mpdf->WriteHTML($html);
+    $mpdf->Output('Laporan_Layanan_' . date('Ymd_His') . '.pdf', 'I');
+    exit;
 }
 
 include '../../includes/header.php';
@@ -127,13 +184,14 @@ include '../../includes/header.php';
         <div class="row">
             <div class="col-12 col-md-6">
                 <h3><?= $pageTitle ?></h3>
+                <p class="text-subtitle text-muted">Statistik dan data layanan terintegrasi.</p>
             </div>
             <div class="col-12 col-md-6">
                 <nav aria-label="breadcrumb" class="breadcrumb-header float-start float-lg-end">
                     <ol class="breadcrumb">
                         <li class="breadcrumb-item"><a href="<?= ADMIN_URL ?>">Dashboard</a></li>
                         <li class="breadcrumb-item">Laporan</li>
-                        <li class="breadcrumb-item active">Layanan</li>
+                        <li class="breadcrumb-item active"><?= $pageTitle ?></li>
                     </ol>
                 </nav>
             </div>
@@ -141,157 +199,222 @@ include '../../includes/header.php';
     </div>
 
     <section class="section">
-        <!-- Filter Card -->
+        <div class="row mb-3">
+             <div class="col-6 col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h6 class="text-white mb-2"><i class="bi bi-grid-fill"></i> Total Layanan</h6>
+                        <h2 class="mb-0"><?= formatNumber($summaryStats['total_active_services']) ?></h2>
+                        <small>(teraktifasi)</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h6 class="text-white mb-2">
+                            <i class="bi bi-bookmark-star-fill"></i> Layanan Terbaik
+                        </h6>
+                        <h2 class="mb-0 text-white">
+                            <?= htmlspecialchars($summaryStats['busiest_service_name']) ?>
+                        </h2>
+                        <small>(<?= formatNumber($summaryStats['busiest_service_views']) ?> Views)</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h6 class="text-white mb-2">
+                            <i class="bi bi-eye-fill"></i> Total Views
+                        </h6>
+                        <h2 class="mb-0">
+                            <?= formatNumber($summaryStats['total_views']) ?>
+                        </h2>
+                        <small>(Membuka)</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h6 class="text-white mb-2">
+                            <i class="bi bi-clock-history"></i> Layanan Terbaru
+                        </h6>
+                        <h2 class="mb-0 text-white">
+                            <?= htmlspecialchars($summaryStats['latest_update_name']) ?>
+                        </h2>
+                        <small>(Baru Dibuat)</small>
+                    </div>
+                </div>
+            </div>
+
+
         <div class="card mb-3">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="bi bi-funnel"></i> Filter Laporan</h5>
+                <h5 class="card-title mb-0">Filter Laporan</h5>
             </div>
             <div class="card-body">
-                <form method="GET">
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Status</label>
-                            <select name="status" class="form-select">
-                                <option value="">Semua Status</option>
-                                <option value="published" <?= $status === 'published' ? 'selected' : '' ?>>Published</option>
-                                <option value="draft" <?= $status === 'draft' ? 'selected' : '' ?>>Draft</option>
-                                <option value="archived" <?= $status === 'archived' ? 'selected' : '' ?>>Archived</option>
-                            </select>
-                        </div>
-                        
-                        <div class="col-md-4">
-                            <label class="form-label">Dari Tanggal</label>
-                            <input type="date" name="date_from" class="form-control" value="<?= $dateFrom ?>">
-                        </div>
-                        
-                        <div class="col-md-4">
-                            <label class="form-label">Sampai Tanggal</label>
-                            <input type="date" name="date_to" class="form-control" value="<?= $dateTo ?>">
-                        </div>
+                <form method="GET" action="" class="row g-3 align-items-end">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label">Tgl Dibuat Dari</label>
+                        <input type="date" name="date_from" class="form-control" value="<?= htmlspecialchars($dateFrom) ?>">
                     </div>
-                    
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-search"></i> Tampilkan
-                            </button>
-                            <a href="report_services.php" class="btn btn-secondary">
-                                <i class="bi bi-arrow-counterclockwise"></i> Reset
-                            </a>
-                            <a href="?export_pdf=1<?= $status ? '&status='.$status : '' ?><?= $dateFrom ? '&date_from='.$dateFrom : '' ?><?= $dateTo ? '&date_to='.$dateTo : '' ?>" 
-                               class="btn btn-danger" target="_blank">
-                                <i class="bi bi-file-pdf"></i> Export PDF
-                            </a>
-                        </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label">Tgl Dibuat Sampai</label>
+                        <input type="date" name="date_to" class="form-control" value="<?= htmlspecialchars($dateTo) ?>">
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label">Judul Layanan</label>
+                        <input type="text" name="title" class="form-control" value="<?= htmlspecialchars($titleFilter) ?>" placeholder="Cari judul...">
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="">-- Semua --</option>
+                            <option value="published" <?= $statusFilter == 'published' ? 'selected' : '' ?>>Published</option>
+                            <option value="draft" <?= $statusFilter == 'draft' ? 'selected' : '' ?>>Draft</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">Per Hal</label>
+                        <select name="per_page" class="form-select">
+                            <?php foreach ($perPageOptions as $n): ?>
+                                <option value="<?= $n ?>"<?= $perPage == $n ? ' selected' : '' ?>><?= $n ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-funnel"></i> Filter
+                        </button>
                     </div>
                 </form>
+                <?php if ($dateFrom || $dateTo || $statusFilter || $titleFilter): ?>
+                    <div class="mt-2">
+                        <a href="?" class="btn btn-sm btn-secondary">
+                            <i class="bi bi-x-circle"></i> Reset Filter
+                        </a>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
-        
-        <!-- Statistics Cards -->
-        <div class="row mb-3">
-            <div class="col-md-3">
-                <div class="card">
-                    <div class="card-body text-center">
-                        <h6 class="text-muted mb-2">Total Layanan</h6>
-                        <h3 class="mb-0"><?= formatNumber($stats['total']) ?></h3>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-column flex-md-row gap-2">
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">Laporan Detail Layanan</h6>
+                        <small class="text-muted">Tanggal Generate: <?= date('d F Y, H:i') ?> WIB</small>
+                        <?php if ($dateFrom || $dateTo || $statusFilter || $titleFilter): ?>
+                            <br><span class="badge bg-info mt-1">Filter Aktif</span>
+                        <?php endif; ?>
                     </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card">
-                    <div class="card-body text-center">
-                        <h6 class="text-muted mb-2">Published</h6>
-                        <h3 class="mb-0 text-success"><?= formatNumber($stats['published']) ?></h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card">
-                    <div class="card-body text-center">
-                        <h6 class="text-muted mb-2">Draft</h6>
-                        <h3 class="mb-0 text-secondary"><?= formatNumber($stats['draft']) ?></h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card">
-                    <div class="card-body text-center">
-                        <h6 class="text-muted mb-2">Archived</h6>
-                        <h3 class="mb-0 text-warning"><?= formatNumber($stats['archived']) ?></h3>
-                    </div>
+
+                    <a href="?export_pdf=1<?= http_build_query(array_filter($_GET, fn($key) => $key != 'page', ARRAY_FILTER_USE_KEY)) ?>"
+                       class="btn btn-danger flex-shrink-0"
+                       target="_blank">
+                        <i class="bi bi-file-pdf"></i> Export PDF
+                    </a>
                 </div>
             </div>
         </div>
-        
-        <div class="row">
-            <!-- Services Table -->
-            <div class="col-lg-8">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Daftar Layanan</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
+
+        <div class="card">
+            <div class="card-header border-bottom-0">
+                <h5 class="card-title mb-0">
+                    Data Layanan
+                    <span class="badge bg-primary"><?= $totalItems ?> Data</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">No</th>
+                                <th>Judul Layanan</th>
+                                <th>Status</th>
+                                <th>Total Dikunjungi</th>
+                                <th>Tgl Dibuat</th>
+                                <th>Update Terakhir</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($mainData)): ?>
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">Tidak ada data layanan</td>
+                                </tr>
+                            <?php else: ?>
+                                <?php 
+                                $no = $offset + 1; 
+                                foreach ($mainData as $row): 
+                                ?>
                                     <tr>
-                                        <th>No</th>
-                                        <th>Judul</th>
-                                        <th>Status</th>
-                                        <th>Tanggal</th>
+                                        <td class="text-center"><?= $no ?></td>
+                                        <td>
+                                            <strong><?= htmlspecialchars($row['title']) ?></strong>
+                                        </td>
+                                        <td class="text-center">
+                                            <?php if ($row['status'] == 'published'): ?>
+                                                <span class="badge bg-light-success">Published</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-light-secondary">Draft</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-primary"><?= formatNumber($row['total_views']) ?></span>
+                                        </td>
+                                        <td class="text-center">
+                                            <small><?= formatTanggal($row['created_at'], 'd/m/Y') ?></small>
+                                        </td>
+                                        <td class="text-center">
+                                            <small><?= formatTanggal($row['updated_at'], 'd/m/Y H:i') ?></small>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if (empty($services)): ?>
-                                        <tr>
-                                            <td colspan="4" class="text-center text-muted">Tidak ada data</td>
-                                        </tr>
-                                    <?php else: ?>
-                                        <?php $no = 1; foreach ($services as $service): ?>
-                                            <tr>
-                                                <td><?= $no++ ?></td>
-                                                <td><?= htmlspecialchars($service['title']) ?></td>
-                                                <td class="text-center"><?= ucfirst($service['status']) ?></td>
-                                                <td class="text-center"><?= formatTanggal($service['created_at'], 'd/m/Y') ?></td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                    <?php $no++; ?>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
                 </div>
-            </div>
-            
-            <!-- Side Stats -->
-            <div class="col-lg-4">
-                <!-- Recent Services -->
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Layanan Terbaru</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <tbody>
-                                    <?php if (empty($recentServices)): ?>
-                                        <tr>
-                                            <td colspan="2" class="text-center text-muted">Tidak ada data</td>
-                                        </tr>
-                                    <?php else: ?>
-                                        <?php foreach ($recentServices as $recent): ?>
-                                            <tr>
-                                                <td><?= htmlspecialchars(truncateText($recent['title'], 30)) ?></td>
-                                                <td class="text-center"><?= formatTanggal($recent['created_at'], 'd/m/Y') ?></td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
+
+                <?php if ($totalItems > 0): ?>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
+                        <div class="flex-grow-1">
+                            <small class="text-muted">
+                                Halaman <?= $page ?> dari <?= $totalPages ?> · Menampilkan <?= count($mainData) ?> dari <?= $totalItems ?> data
+                            </small>
                         </div>
+                        <nav aria-label="Page navigation" class="flex-shrink-0">
+                            <ul class="pagination mb-0">
+                                <li class="page-item<?= $page <= 1 ? ' disabled' : '' ?>">
+                                    <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                                <?php
+                                $from = max(1, $page - 2);
+                                $to = min($totalPages, $page + 2);
+                                for ($i = $from; $i <= $to; $i++): ?>
+                                    <li class="page-item<?= $i == $page ? ' active' : '' ?>">
+                                        <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>">
+                                            <?= $i ?>
+                                        </a>
+                                    </li>
+                                <?php endfor; ?>
+                                <li class="page-item<?= $page >= $totalPages ? ' disabled' : '' ?>">
+                                    <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
                     </div>
-                </div>
+                <?php endif; ?>
             </div>
         </div>
     </section>

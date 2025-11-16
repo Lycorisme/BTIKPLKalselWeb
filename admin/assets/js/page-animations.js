@@ -1,6 +1,6 @@
 /**
  * Simple Page Transition & Smooth Scroll Handler (CRUD safe + Konfirmasi)
- * v3.4 (Clean) - Fungsi perbaikan sidebar dihapus, akan dipindah inline.
+ * v3.6 (Fixed Scroll To Top) - Perbaikan tombol Scroll To Top yang hilang
  */
 (function() {
     'use strict';
@@ -73,25 +73,53 @@
         });
     }
 
-    // ========= SCROLL TO TOP =========
+    // ========= SCROLL TO TOP (FIXED) =========
     function initScrollToTop() {
-        const scrollBtn = document.createElement('button');
-        scrollBtn.innerHTML = '<i class="bi bi-arrow-up"></i>';
-        scrollBtn.className = 'scroll-to-top-btn';
-        scrollBtn.setAttribute('aria-label', 'Scroll to top');
-        scrollBtn.style.cssText =
-            'position:fixed;bottom:30px;right:30px;width:45px;height:45px;border-radius:50%;background:#435ebe;color:white;border:none;cursor:pointer;opacity:0;visibility:hidden;transition:all .3s;z-index:1000;box-shadow:0 4px 12px rgba(67,94,190,.3);display:flex;align:items:center;justify-content:center;font-size:1.2rem;';
-        document.body.appendChild(scrollBtn);
+        // Cek jika tombol sudah ada
+        let scrollBtn = document.getElementById('scrollToTop');
+        
+        // Jika tombol belum ada, buat tombol baru
+        if (!scrollBtn) {
+            scrollBtn = document.createElement('button');
+            scrollBtn.id = 'scrollToTop';
+            scrollBtn.innerHTML = '<i class="bi bi-arrow-up"></i>';
+            scrollBtn.className = 'scroll-to-top-btn';
+            scrollBtn.setAttribute('aria-label', 'Scroll to top');
+            document.body.appendChild(scrollBtn);
+        }
 
+        // Fungsi untuk menampilkan/menyembunyikan tombol
         function toggleScrollButton() {
-            if (window.pageYOffset > 300) {
-                scrollBtn.style.opacity = '1'; scrollBtn.style.visibility = 'visible';
+            const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+            
+            if (scrollPosition > 300) {
+                scrollBtn.classList.add('show');
+                scrollBtn.classList.remove('hide');
             } else {
-                scrollBtn.style.opacity = '0'; scrollBtn.style.visibility = 'hidden';
+                scrollBtn.classList.add('hide');
+                scrollBtn.classList.remove('show');
             }
         }
+        
+        // Event listener untuk scroll
         window.addEventListener('scroll', toggleScrollButton);
-        scrollBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+        
+        // Event listener untuk klik
+        scrollBtn.addEventListener('click', function() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+            
+            // Tambahkan animasi rotasi saat diklik
+            this.style.transform = 'rotate(360deg)';
+            setTimeout(() => {
+                this.style.transform = '';
+            }, 500);
+        });
+        
+        // Inisialisasi status tombol
+        toggleScrollButton();
     }
 
     // ========= LAZY ANIMATION =========
@@ -134,7 +162,6 @@
         initScrollToTop();
         initLazyAnimations();
         handleBackButton();
-        // Fungsi initSidebarScrollFix() sudah dihapus dari sini
     }
     
     init();

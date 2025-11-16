@@ -44,10 +44,13 @@ $roleOptions = [
     'editor' => 'Editor',
     'author' => 'Author'
 ];
+
+// Menambahkan opsi filter untuk 'is_active = 3'
 $activeOptions = [
     '' => 'Semua Status',
     '1' => 'Aktif',
-    '0' => 'Tidak Aktif'
+    '0' => 'Tidak Aktif',
+    '3' => 'Menunggu Persetujuan'
 ];
 $perPageOptions = [10,25,50,100];
 $deletedOptions = [
@@ -57,84 +60,6 @@ $deletedOptions = [
 
 include '../../includes/header.php';
 ?>
-
-<style>
-/* Custom styling untuk card statistik yang lebih responsif */
-.stats-card-wrapper {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-}
-
-@media (max-width: 576px) {
-    .stats-card-wrapper {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.5rem;
-    }
-    
-    .stats-card-compact {
-        padding: 0.75rem !important;
-    }
-    
-    .stats-icon {
-        width: 40px !important;
-        height: 40px !important;
-        font-size: 1.2rem !important;
-    }
-    
-    .stats-card-compact h6.text-muted {
-        font-size: 0.7rem;
-        margin-bottom: 0.25rem !important;
-    }
-    
-    .stats-card-compact h6:last-child {
-        font-size: 1.1rem;
-    }
-}
-
-@media (min-width: 577px) and (max-width: 768px) {
-    .stats-card-wrapper {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (min-width: 769px) {
-    .stats-card-wrapper {
-        grid-template-columns: repeat(4, 1fr);
-    }
-}
-
-/* Perbaikan untuk filter form di mobile */
-@media (max-width: 576px) {
-    .filter-form .col-12.col-sm-3,
-    .filter-form .col-6.col-sm-2,
-    .filter-form .col-12.col-sm-1 {
-        margin-bottom: 0.5rem;
-    }
-    
-    .filter-form .btn {
-        font-size: 0.875rem;
-    }
-}
-
-/* Perbaikan tabel responsif */
-@media (max-width: 768px) {
-    .table-responsive {
-        font-size: 0.85rem;
-    }
-    
-    .avatar.avatar-md {
-        width: 35px !important;
-        height: 35px !important;
-    }
-    
-    .btn-group-sm .btn {
-        padding: 0.25rem 0.4rem;
-        font-size: 0.75rem;
-    }
-}
-</style>
 
 <div class="page-heading">
     <div class="page-title">
@@ -154,45 +79,52 @@ include '../../includes/header.php';
         </div>
     </div>
 
-    <!-- Stats Cards dengan Grid Responsif -->
-    <section class="stats-card-wrapper">
-        <div class="card">
-            <div class="card-body text-center stats-card-compact">
-                <div class="stats-icon purple mb-2 mx-auto">
-                    <i class="bi bi-shield-check"></i>
+    <section class="row mb-3">
+        <div class="col-6 col-lg-3 col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="stats-icon purple mb-2 mx-auto">
+                        <i class="bi bi-shield-check"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">Super Admin</h6>
+                    <h6 class="mb-0 fw-bold"><?= $roleCounts['super_admin'] ?></h6>
                 </div>
-                <h6 class="text-muted mb-1">Super Admin</h6>
-                <h6 class="mb-0 fw-bold"><?= $roleCounts['super_admin'] ?></h6>
             </div>
         </div>
         
-        <div class="card">
-            <div class="card-body text-center stats-card-compact">
-                <div class="stats-icon blue mb-2 mx-auto">
-                    <i class="bi bi-person-badge"></i>
+        <div class="col-6 col-lg-3 col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="stats-icon blue mb-2 mx-auto">
+                        <i class="bi bi-person-badge"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">Admin</h6>
+                    <h6 class="mb-0 fw-bold"><?= $roleCounts['admin'] ?></h6>
                 </div>
-                <h6 class="text-muted mb-1">Admin</h6>
-                <h6 class="mb-0 fw-bold"><?= $roleCounts['admin'] ?></h6>
             </div>
         </div>
         
-        <div class="card">
-            <div class="card-body text-center stats-card-compact">
-                <div class="stats-icon green mb-2 mx-auto">
-                    <i class="bi bi-pencil-square"></i>
+        <div class="col-6 col-lg-3 col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="stats-icon green mb-2 mx-auto">
+                        <i class="bi bi-pencil-square"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">Editor</h6>
+                    <h6 class="mb-0 fw-bold"><?= $roleCounts['editor'] ?></h6>
                 </div>
-                <h6 class="text-muted mb-1">Editor</h6>
-                <h6 class="mb-0 fw-bold"><?= $roleCounts['editor'] ?></h6>
             </div>
         </div>
         
-        <div class="card">
-            <div class="card-body text-center stats-card-compact">
-                <div class="stats-icon red mb-2 mx-auto">
-                    <i class="bi bi-person"></i>
+        <div class="col-6 col-lg-3 col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="stats-icon red mb-2 mx-auto">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">Author</h6>
+                    <h6 class="mb-0 fw-bold"><?= $roleCounts['author'] ?></h6>
                 </div>
-                <h6 class="text-muted mb-1">Author</h6>
-                <h6 class="mb-0 fw-bold"><?= $roleCounts['author'] ?></h6>
             </div>
         </div>
     </section>
@@ -209,7 +141,6 @@ include '../../includes/header.php';
                 </div>
             </div>
             <div class="card-body">
-                <!-- Filter Panel -->
                 <form method="get" class="row g-2 align-items-center mb-3 filter-form">
                     <div class="col-12 col-sm-3">
                         <input type="text" name="search" class="form-control form-control-sm" placeholder="Cari nama/email..." value="<?= htmlspecialchars($search) ?>">
@@ -296,11 +227,15 @@ include '../../includes/header.php';
                                     <td class="d-none d-md-table-cell"><?= htmlspecialchars($user['email']) ?></td>
                                     <td><?= getRoleBadge($user['role']) ?></td>
                                     <td class="d-none d-lg-table-cell">
-                                        <?php if ($user['is_active']): ?>
+                                        
+                                        <?php if ($user['is_active'] == 1): ?>
                                             <span class="badge bg-success">Aktif</span>
-                                        <?php else: ?>
+                                        <?php elseif ($user['is_active'] == 0): ?>
                                             <span class="badge bg-secondary">Tidak Aktif</span>
+                                        <?php elseif ($user['is_active'] == 3): ?>
+                                            <span class="badge bg-warning">Menunggu ACC</span>
                                         <?php endif ?>
+
                                         <?php if ($isTrashed): ?>
                                             <span class="badge bg-danger ms-1">Deleted</span>
                                         <?php endif ?>
@@ -309,8 +244,28 @@ include '../../includes/header.php';
                                         <small><?= $user['last_login_at'] ? formatTanggal($user['last_login_at'], 'd M Y H:i') : 'Belum login' ?></small>
                                     </td>
                                     <td class="text-center">
+                                        
                                         <?php if ($isTrashed): ?>
                                             <span class="badge bg-danger">Deleted</span>
+                                        <?php elseif ($user['is_active'] == 3): ?>
+                                            <div class="btn-group btn-group-sm">
+                                                
+                                                <a href="users_acc.php?id=<?= $user['id'] ?>" class="btn btn-success"
+                                                   data-confirm-delete
+                                                   data-title="Setujui Pengguna"
+                                                   data-message="Anda yakin ingin menyetujui (ACC) pengguna &quot;<?= htmlspecialchars($user['name']) ?>&quot;? Akun ini akan diaktifkan."
+                                                   data-loading-text="Menyetujui..." title="Setujui (ACC)">
+                                                    <i class="bi bi-check-circle"></i>
+                                                </a>
+                                                
+                                                <a href="users_reject.php?id=<?= $user['id'] ?>" class="btn btn-danger"
+                                                   data-confirm-delete
+                                                   data-title="Tolak Pengguna"
+                                                   data-message="Tolak dan hapus permanen user &quot;<?= htmlspecialchars($user['name']) ?>&quot;? Tindakan ini tidak dapat dibatalkan."
+                                                   data-loading-text="Menolak..." title="Tolak">
+                                                   <i class="bi bi-x-circle"></i>
+                                                </a>
+                                            </div>
                                         <?php else: ?>
                                             <div class="btn-group btn-group-sm">
                                                 <a href="users_view.php?id=<?= $user['id'] ?>" class="btn btn-info" title="Detail">
@@ -320,6 +275,7 @@ include '../../includes/header.php';
                                                     <i class="bi bi-pencil"></i>
                                                 </a>
                                                 <?php if($user['id']!=getCurrentUser()['id']): ?>
+                                                
                                                 <a href="users_delete.php?id=<?= $user['id'] ?>" class="btn btn-danger"
                                                    data-confirm-delete
                                                    data-title="<?= htmlspecialchars($user['name']) ?>"
@@ -330,14 +286,14 @@ include '../../includes/header.php';
                                                 <?php endif ?>
                                             </div>
                                         <?php endif ?>
+
                                     </td>
-                                </tr>
+                                 </tr>
                             <?php endforeach; endif ?>
                         </tbody>
                     </table>
                 </div>
 
-                <!-- Pagination -->
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
                     <div>
                         <small class="text-muted">

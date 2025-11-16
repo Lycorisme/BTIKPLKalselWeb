@@ -1,12 +1,12 @@
 <?php
 /**
  * PDF Template: Laporan Posts
- * Clean black & white design - Portrait
+ * Sesuai standar laporan executive (Landscape A4)
  */
 
 // Convert logo to base64
 $logoBase64 = '';
-if ($siteLogo && uploadExists($siteLogo)) {
+if ($siteLogo && function_exists('uploadExists') && uploadExists($siteLogo)) {
     $logoPath = uploadPath($siteLogo);
     if (file_exists($logoPath)) {
         $logoData = file_get_contents($logoPath);
@@ -22,113 +22,108 @@ if ($siteLogo && uploadExists($siteLogo)) {
     <style>
         body {
             font-family: "Cambria", serif;
-            font-size: 10pt;
+            font-size: 9pt;
             color: #000;
             margin: 0;
             padding: 0;
         }
         
-        /* Header */
+        /* Header dengan Logo di Atas */
         .header {
             width: 100%;
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
+            text-align: center;
+            border-bottom: 3px solid #000;
+            padding-bottom: 15px;
             margin-bottom: 20px;
         }
         
-        .header-table {
-            width: 100%;
-        }
-        
         .header-logo {
-            width: 80px;
-            vertical-align: middle;
+            margin-bottom: 10px;
         }
         
-        .header-info {
-            text-align: center;
-            vertical-align: middle;
+        .header-logo img {
+            height: 60px;
+            max-width: 150px;
         }
         
         .header-title {
-            font-size: 14pt;
+            font-size: 16pt;
             font-weight: bold;
             text-transform: uppercase;
-            margin-bottom: 3px;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
         }
         
         .header-contact {
             font-size: 9pt;
-            line-height: 1.4;
+            line-height: 1.5;
+            color: #333;
         }
         
         /* Title */
         h1 {
             text-align: center;
-            font-size: 14pt;
+            font-size: 18pt;
             font-weight: bold;
             text-transform: uppercase;
             margin: 20px 0 5px 0;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
         }
         
+        .subtitle {
+            text-align: center;
+            font-size: 10pt;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        /* Main Table */
         h2 {
-            font-size: 11pt;
+            font-size: 12pt;
             font-weight: bold;
             margin-top: 20px;
             margin-bottom: 10px;
-            border-bottom: 1px solid #000;
-            padding-bottom: 3px;
-        }
-        
-        /* Tables */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 5px;
+            text-transform: uppercase;
         }
         
         table.data-table {
+            width: 100%;
+            border-collapse: collapse;
             border: 1px solid #000;
+            margin-top: 10px;
         }
         
         table.data-table th {
-            background-color: #f0f0f0;
-            padding: 8px 5px;
-            text-align: left;
+            background-color: #e0e0e0;
+            padding: 8px 4px;
+            text-align: center;
             border: 1px solid #000;
             font-weight: bold;
             font-size: 8pt;
+            text-transform: uppercase;
         }
         
         table.data-table td {
-            padding: 6px 5px;
+            padding: 6px 4px;
             border: 1px solid #000;
             font-size: 8pt;
+            vertical-align: middle;
         }
         
-        /* Stats Table */
-        .stats-table {
-            width: 100%;
-            margin: 15px 0;
-        }
-        
-        .stats-table td {
-            padding: 10px;
-            text-align: center;
-            border: 1px solid #000;
+        table.data-table tbody tr:nth-child(even) {
             background-color: #f9f9f9;
         }
         
-        .stats-label {
-            font-size: 8pt;
+        table.data-table tfoot {
+            background-color: #d0d0d0;
             font-weight: bold;
-            margin-bottom: 5px;
         }
-        
-        .stats-value {
-            font-size: 14pt;
-            font-weight: bold;
+         table.data-table tfoot th {
+             background-color: #d0d0d0;
+             padding: 8px 4px;
+             border: 1px solid #000;
         }
         
         /* Utilities */
@@ -140,172 +135,90 @@ if ($siteLogo && uploadExists($siteLogo)) {
             text-align: right;
         }
         
-        .mt-20 {
-            margin-top: 20px;
+        .text-left {
+            text-align: left;
         }
+
     </style>
 </head>
 <body>
-    <!-- Header -->
     <div class="header">
-        <table class="header-table">
-            <tr>
-                <td class="header-logo">
-                    <?php if ($logoBase64): ?>
-                        <img src="<?= $logoBase64 ?>" style="height: 60px;">
-                    <?php endif; ?>
-                </td>
-                <td class="header-info">
-                    <div class="header-title"><?= strtoupper($siteName) ?></div>
-                    <div class="header-contact">
-                        <?php if ($contactAddress): ?>
-                            <?= htmlspecialchars($contactAddress) ?><br>
-                        <?php endif; ?>
-                        <?php if ($contactPhone): ?>
-                            Telp: <?= htmlspecialchars($contactPhone) ?>
-                        <?php endif; ?>
-                        <?php if ($contactPhone && $contactEmail): ?>
-                            |
-                        <?php endif; ?>
-                        <?php if ($contactEmail): ?>
-                            Email: <?= htmlspecialchars($contactEmail) ?>
-                        <?php endif; ?>
-                    </div>
-                </td>
-                <td style="width: 80px;"></td>
-            </tr>
-        </table>
+        <?php if ($logoBase64): ?>
+            <div class="header-logo">
+                <img src="<?= $logoBase64 ?>" alt="Logo" style="height: 60px; max-width: 150px;">
+            </div>
+        <?php endif; ?>
+        
+        <div class="header-title"><?= strtoupper($siteName) ?></div>
+        <div class="header-contact">
+            <?php if ($contactAddress): ?>
+                <?= htmlspecialchars($contactAddress) ?><br>
+            <?php endif; ?>
+            <?php if ($contactPhone): ?>
+                Telp: <?= htmlspecialchars($contactPhone) ?>
+            <?php endif; ?>
+            <?php if ($contactPhone && $contactEmail): ?>
+                 | 
+            <?php endif; ?>
+            <?php if ($contactEmail): ?>
+                Email: <?= htmlspecialchars($contactEmail) ?>
+            <?php endif; ?>
+        </div>
     </div>
     
-    <!-- Title -->
-    <h1>LAPORAN POSTS/ARTIKEL</h1>
+    <h1>Laporan Posts</h1>
+    <div class="subtitle">
+        Tanggal Cetak: <?= date('d F Y, H:i') ?> WIB
+    </div>
     
-    <!-- Statistics -->
-    <h2>RINGKASAN STATISTIK</h2>
-    <table class="stats-table">
-        <tr>
-            <td>
-                <div class="stats-label">TOTAL POSTS</div>
-                <div class="stats-value"><?= formatNumber($stats['total']) ?></div>
-            </td>
-            <td>
-                <div class="stats-label">PUBLISHED</div>
-                <div class="stats-value"><?= formatNumber($stats['published']) ?></div>
-            </td>
-            <td>
-                <div class="stats-label">DRAFT</div>
-                <div class="stats-value"><?= formatNumber($stats['draft']) ?></div>
-            </td>
-            <td>
-                <div class="stats-label">TOTAL LIKES</div>
-                <div class="stats-value"><?= formatNumber($stats['total_likes']) ?></div>
-            </td>
-            <td>
-                <div class="stats-label">TOTAL KOMENTAR</div>
-                <div class="stats-value"><?= formatNumber($stats['total_comments']) ?></div>
-            </td>
-            <td>
-                <div class="stats-label">TOTAL VIEWS</div>
-                <div class="stats-value"><?= formatNumber($stats['total_views']) ?></div>
-            </td>
-        </tr>
-    </table>
-    
-    <!-- Posts List -->
-    <h2>DAFTAR POSTS</h2>
+    <h2 style="border-bottom: none; padding-bottom: 2px;">Data Posts (Total: <?= count($mainData) ?> Data)</h2>
     <table class="data-table">
         <thead>
             <tr>
                 <th style="width: 4%;">No</th>
-                <th style="width: 28%;">Judul</th>
-                <th style="width: 10%;">Tanggal Post</th>
+                <th style="width: 32%;">Judul Post</th>
                 <th style="width: 12%;">Kategori</th>
                 <th style="width: 12%;">Penulis</th>
-                <th style="width: 9%;">Status</th>
-                <th style="width: 7%;">Likes</th>
-                <th style="width: 9%;">Komentar</th>
-                <th style="width: 7%;">Views</th>
+                <th style="width: 8%;">Status</th>
+                <th style="width: 8%;">Views</th>
+                <th style="width: 8%;">Likes</th>
+                <th style="width: 8%;">Comments</th>
+                <th style="width: 8%;">Tgl Publish</th>
             </tr>
         </thead>
         <tbody>
-            <?php if (empty($posts)): ?>
+            <?php if (empty($mainData)): ?>
                 <tr>
-                    <td colspan="9" class="text-center" style="padding: 20px;">Tidak ada data posts</td>
+                    <td colspan="9" class="text-center" style="padding: 20px;">Tidak ada data</td>
                 </tr>
             <?php else: ?>
-                <?php $no = 1; foreach ($posts as $post): ?>
+                <?php $no = 1; foreach ($mainData as $row): ?>
                     <tr>
-                        <td class="text-center"><?= $no++ ?></td>
-                        <td><?= htmlspecialchars($post['title']) ?><?= $post['is_featured'] ? ' (Featured)' : '' ?></td>
-                        <td class="text-center"><?= formatTanggal($post['created_at'], 'd/m/Y') ?></td>
-                        <td><?= htmlspecialchars($post['category_name']) ?></td>
-                        <td><?= htmlspecialchars($post['author_name']) ?></td>
-                        <td class="text-center"><?= ucfirst($post['status']) ?></td>
-                        <td class="text-center"><?= formatNumber($post['like_count']) ?></td>
-                        <td class="text-center"><?= formatNumber($post['comment_count']) ?></td>
-                        <td class="text-center"><?= formatNumber($post['view_count']) ?></td>
+                        <td class="text-center"><?= $no ?></td>
+                        <td class="text-left">
+                            <strong><?= htmlspecialchars($row['title']) ?></strong>
+                        </td>
+                        <td class="text-center"><?= htmlspecialchars($row['category_name']) ?></td>
+                        <td class="text-center"><?= htmlspecialchars($row['author_name']) ?></td>
+                        <td class="text-center"><?= ucfirst($row['status']) ?></td>
+                        <td class="text-center"><strong><?= formatNumber($row['view_count']) ?></strong></td>
+                        <td class="text-center"><?= formatNumber($row['likes']) ?></td>
+                        <td class="text-center"><?= formatNumber($row['comments']) ?></td>
+                        <td class="text-center"><?= formatTanggal($row['published_at'], 'd/m/Y') ?></td>
                     </tr>
+                    <?php $no++; ?>
                 <?php endforeach; ?>
             <?php endif; ?>
         </tbody>
-    </table>
-    
-    <!-- Category & Author Stats -->
-    <div class="mt-20">
-        <table style="width: 100%;">
+        <tfoot>
             <tr>
-                <td style="width: 50%; vertical-align: top; padding-right: 10px;">
-                    <h2>POSTS PER KATEGORI</h2>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Nama Kategori</th>
-                                <th style="width: 20%;" class="text-center">Jumlah</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($categoryStats)): ?>
-                                <tr>
-                                    <td colspan="2" class="text-center">Tidak ada data</td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($categoryStats as $cat): ?>
-                                    <tr>
-                                        <td><?= htmlspecialchars($cat['name']) ?></td>
-                                        <td class="text-center"><strong><?= formatNumber($cat['total']) ?></strong></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </td>
-                <td style="width: 50%; vertical-align: top; padding-left: 10px;">
-                    <h2>TOP 10 PENULIS</h2>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Nama Penulis</th>
-                                <th style="width: 20%;" class="text-center">Posts</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($authorStats)): ?>
-                                <tr>
-                                    <td colspan="2" class="text-center">Tidak ada data</td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($authorStats as $author): ?>
-                                    <tr>
-                                        <td><?= htmlspecialchars($author['name']) ?></td>
-                                        <td class="text-center"><strong><?= formatNumber($author['total']) ?></strong></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </td>
+                <th colspan="5" class="text-right">TOTAL:</th>
+                <th class="text-center"><?= formatNumber(array_sum(array_column($mainData, 'view_count'))) ?></th>
+                <th class="text-center"><?= formatNumber(array_sum(array_column($mainData, 'likes'))) ?></th>
+                <th class="text-center"><?= formatNumber(array_sum(array_column($mainData, 'comments'))) ?></th>
+                <th class="text-center"></th>
             </tr>
-        </table>
-    </div>
+        </tfoot>
+    </table>
 </body>
 </html>

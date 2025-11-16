@@ -495,3 +495,25 @@ function getGradientOptions() {
         'ocean' => 'Ocean',
     ];
 }
+
+if (!function_exists('formatUkuranFile')) {
+    /**
+     * Mengubah ukuran file (bytes) menjadi format yang mudah dibaca (KB, MB, GB).
+     *
+     * @param int $bytes Ukuran file dalam bytes.
+     * @param int $precision Jumlah angka di belakang koma.
+     * @return string Ukuran file yang diformat.
+     */
+    function formatUkuranFile($bytes, $precision = 2) {
+        if ($bytes <= 0) {
+            return '0 B';
+        }
+
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $factor = floor(log($bytes, 1024));
+        
+        $value = $bytes / pow(1024, $factor);
+
+        return number_format($value, $precision) . ' ' . $units[$factor];
+    }
+}

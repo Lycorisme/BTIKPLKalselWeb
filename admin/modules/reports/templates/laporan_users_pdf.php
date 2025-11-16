@@ -1,12 +1,12 @@
 <?php
 /**
- * PDF Template: Laporan Users
- * Clean black & white design - Portrait (WITHOUT STATUS COLUMN)
+ * PDF Template: Laporan Pengguna
+ * Sesuai standar laporan executive (Landscape A4)
  */
 
 // Convert logo to base64
 $logoBase64 = '';
-if ($siteLogo && uploadExists($siteLogo)) {
+if ($siteLogo && function_exists('uploadExists') && uploadExists($siteLogo)) {
     $logoPath = uploadPath($siteLogo);
     if (file_exists($logoPath)) {
         $logoData = file_get_contents($logoPath);
@@ -14,6 +14,12 @@ if ($siteLogo && uploadExists($siteLogo)) {
         $logoBase64 = 'data:image/' . $logoExt . ';base64,' . base64_encode($logoData);
     }
 }
+
+// Hitung total untuk footer (dari data yang difilter)
+$total_users = count($mainData);
+$total_active = count(array_filter($mainData, fn($row) => $row['is_active'] == 1));
+$total_admins = count(array_filter($mainData, fn($row) => in_array($row['role'], ['admin', 'super_admin'])));
+
 ?>
 <!DOCTYPE html>
 <html>
@@ -22,111 +28,112 @@ if ($siteLogo && uploadExists($siteLogo)) {
     <style>
         body {
             font-family: "Cambria", serif;
-            font-size: 10pt;
+            font-size: 9pt;
             color: #000;
             margin: 0;
             padding: 0;
         }
         
+        /* Header dengan Logo di Atas */
         .header {
             width: 100%;
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
+            text-align: center;
+            border-bottom: 3px solid #000;
+            padding-bottom: 15px;
             margin-bottom: 20px;
         }
         
-        .header-table {
-            width: 100%;
-        }
-        
         .header-logo {
-            width: 80px;
-            vertical-align: middle;
+            margin-bottom: 10px;
         }
         
-        .header-info {
-            text-align: center;
-            vertical-align: middle;
+        .header-logo img {
+            height: 60px;
+            max-width: 150px;
         }
         
         .header-title {
-            font-size: 14pt;
+            font-size: 16pt;
             font-weight: bold;
             text-transform: uppercase;
-            margin-bottom: 3px;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
         }
         
         .header-contact {
             font-size: 9pt;
-            line-height: 1.4;
+            line-height: 1.5;
+            color: #333;
         }
         
+        /* Title */
         h1 {
             text-align: center;
-            font-size: 14pt;
+            font-size: 18pt;
             font-weight: bold;
             text-transform: uppercase;
             margin: 20px 0 5px 0;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
         }
         
+        .subtitle {
+            text-align: center;
+            font-size: 10pt;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        /* Main Table */
         h2 {
-            font-size: 11pt;
+            font-size: 12pt;
             font-weight: bold;
             margin-top: 20px;
             margin-bottom: 10px;
-            border-bottom: 1px solid #000;
-            padding-bottom: 3px;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 5px;
+            text-transform: uppercase;
         }
         
         table.data-table {
+            width: 100%;
+            border-collapse: collapse;
             border: 1px solid #000;
+            margin-top: 10px;
         }
         
         table.data-table th {
-            background-color: #f0f0f0;
-            padding: 8px 5px;
-            text-align: left;
+            background-color: #e0e0e0;
+            padding: 8px 4px;
+            text-align: center;
             border: 1px solid #000;
             font-weight: bold;
-            font-size: 9pt;
+            font-size: 8pt;
+            text-transform: uppercase;
         }
         
         table.data-table td {
-            padding: 6px 5px;
+            padding: 6px 4px;
             border: 1px solid #000;
-            font-size: 9pt;
+            font-size: 8pt;
+            vertical-align: middle;
+            word-wrap: break-word;
         }
         
-        .stats-table {
-            width: 100%;
-            margin: 15px 0;
-        }
-        
-        .stats-table td {
-            padding: 10px;
-            text-align: center;
-            border: 1px solid #000;
+        table.data-table tbody tr:nth-child(even) {
             background-color: #f9f9f9;
         }
         
-        .stats-label {
-            font-size: 8pt;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
-        .stats-value {
-            font-size: 16pt;
+        table.data-table tfoot {
+            background-color: #d0d0d0;
             font-weight: bold;
         }
+         table.data-table tfoot th {
+             background-color: #d0d0d0;
+             padding: 8px 4px;
+             border: 1px solid #000;
+        }
         
+        /* Utilities */
         .text-center {
             text-align: center;
         }
@@ -135,169 +142,103 @@ if ($siteLogo && uploadExists($siteLogo)) {
             text-align: right;
         }
         
-        .mt-20 {
-            margin-top: 20px;
+        .text-left {
+            text-align: left;
         }
+        .text-success {
+            color: #198754;
+        }
+        .text-danger {
+            color: #dc3545;
+        }
+
     </style>
 </head>
 <body>
-    <!-- Header -->
     <div class="header">
-        <table class="header-table">
-            <tr>
-                <td class="header-logo">
-                    <?php if ($logoBase64): ?>
-                        <img src="<?= $logoBase64 ?>" style="height: 60px;">
-                    <?php endif; ?>
-                </td>
-                <td class="header-info">
-                    <div class="header-title"><?= strtoupper($siteName) ?></div>
-                    <div class="header-contact">
-                        <?php if ($contactAddress): ?>
-                            <?= htmlspecialchars($contactAddress) ?><br>
-                        <?php endif; ?>
-                        <?php if ($contactPhone): ?>
-                            Telp: <?= htmlspecialchars($contactPhone) ?>
-                        <?php endif; ?>
-                        <?php if ($contactPhone && $contactEmail): ?>
-                            |
-                        <?php endif; ?>
-                        <?php if ($contactEmail): ?>
-                            Email: <?= htmlspecialchars($contactEmail) ?>
-                        <?php endif; ?>
-                    </div>
-                </td>
-                <td style="width: 80px;"></td>
-            </tr>
-        </table>
+        <?php if ($logoBase64): ?>
+            <div class="header-logo">
+                <img src="<?= $logoBase64 ?>" alt="Logo" style="height: 60px; max-width: 150px;">
+            </div>
+        <?php endif; ?>
+        
+        <div class="header-title"><?= strtoupper($siteName) ?></div>
+        <div class="header-contact">
+            <?php if ($contactAddress): ?>
+                <?= htmlspecialchars($contactAddress) ?><br>
+            <?php endif; ?>
+            <?php if ($contactPhone): ?>
+                Telp: <?= htmlspecialchars($contactPhone) ?>
+            <?php endif; ?>
+            <?php if ($contactPhone && $contactEmail): ?>
+                 | 
+            <?php endif; ?>
+            <?php if ($contactEmail): ?>
+                Email: <?= htmlspecialchars($contactEmail) ?>
+            <?php endif; ?>
+        </div>
     </div>
     
-    <!-- Title -->
-    <h1>LAPORAN DATA USERS</h1>
+    <h1>Laporan Pengguna</h1>
+    <div class="subtitle">
+        Tanggal Cetak: <?= date('d F Y, H:i') ?> WIB
+    </div>
     
-    <!-- Statistics -->
-    <h2>RINGKASAN STATISTIK</h2>
-    <table class="stats-table">
-        <tr>
-            <td>
-                <div class="stats-label">TOTAL USERS</div>
-                <div class="stats-value"><?= formatNumber($stats['total']) ?></div>
-            </td>
-            <td>
-                <div class="stats-label">SUPER ADMIN</div>
-                <div class="stats-value"><?= formatNumber($stats['super_admin']) ?></div>
-            </td>
-            <td>
-                <div class="stats-label">ADMIN</div>
-                <div class="stats-value"><?= formatNumber($stats['admin']) ?></div>
-            </td>
-            <td>
-                <div class="stats-label">EDITOR</div>
-                <div class="stats-value"><?= formatNumber($stats['editor']) ?></div>
-            </td>
-        </tr>
-    </table>
-    
-    <!-- Users List -->
-    <h2>DAFTAR USERS</h2>
+    <h2 style="border-bottom: none; padding-bottom: 2px;">Data Pengguna (Total: <?= count($mainData) ?> Data)</h2>
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width: 5%;">No</th>
-                <th style="width: 30%;">Nama Lengkap</th>
-                <th style="width: 35%;">Email</th>
-                <th style="width: 15%;">Role</th>
-                <th style="width: 15%;">Terdaftar</th>
+                <th style="width: 4%;">No</th>
+                <th style="width: 20%;">Nama</th>
+                <th style="width: 20%;">Email</th>
+                <th style="width: 12%;">Role</th>
+                <th style="width: 10%;">Status</th>
+                <th style="width: 17%;">Login Terakhir</th>
+                <th style="width: 17%;">Tgl Daftar</th>
             </tr>
         </thead>
         <tbody>
-            <?php if (empty($users)): ?>
+            <?php if (empty($mainData)): ?>
                 <tr>
-                    <td colspan="5" class="text-center" style="padding: 20px;">Tidak ada data users</td>
+                    <td colspan="7" class="text-center" style="padding: 20px;">Tidak ada data pengguna</td>
                 </tr>
             <?php else: ?>
-                <?php $no = 1; foreach ($users as $user): ?>
+                <?php $no = 1; foreach ($mainData as $row): ?>
                     <tr>
-                        <td class="text-center"><?= $no++ ?></td>
-                        <td><?= htmlspecialchars($user['name']) ?></td>
-                        <td><?= htmlspecialchars($user['email']) ?></td>
-                        <td class="text-center"><?= getRoleName($user['role']) ?></td>
-                        <td class="text-center"><?= formatTanggal($user['created_at'], 'd/m/Y') ?></td>
+                        <td class="text-center"><?= $no ?></td>
+                        <td class="text-left">
+                            <strong><?= htmlspecialchars($row['name']) ?></strong>
+                        </td>
+                        <td class="text-left"><?= htmlspecialchars($row['email']) ?></td>
+                        <td class="text-center"><?= ucfirst(str_replace('_', ' ', $row['role'])) ?></td>
+                        <td class="text-center">
+                            <?php if ($row['is_active']): ?>
+                                <span class="text-success">Aktif</span>
+                            <?php else: ?>
+                                <span class="text-danger">Non-Aktif</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-center"><?= $row['last_login_at'] ? formatTanggal($row['last_login_at'], 'd/m/Y H:i') : '-' ?></td>
+                        <td class="text-center"><?= formatTanggal($row['created_at'], 'd/m/Y H:i') ?></td>
                     </tr>
+                    <?php $no++; ?>
                 <?php endforeach; ?>
             <?php endif; ?>
         </tbody>
-    </table>
-    
-    <!-- Stats Breakdown -->
-    <div class="mt-20">
-        <table style="width: 100%;">
+        <tfoot>
             <tr>
-                <td style="width: 50%; vertical-align: top; padding-right: 10px;">
-                    <h2>USERS PER ROLE</h2>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Role</th>
-                                <th style="width: 25%;" class="text-center">Jumlah</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($roleStats as $roleStat): ?>
-                                <tr>
-                                    <td><?= getRoleName($roleStat['role']) ?></td>
-                                    <td class="text-center"><strong><?= formatNumber($roleStat['total']) ?></strong></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                    
-                    <h2 style="margin-top: 15px;">TOP 10 USER AKTIF</h2>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Nama User</th>
-                                <th style="width: 30%;" class="text-center">Aktivitas</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($topActiveUsers as $activeUser): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($activeUser['name']) ?></td>
-                                    <td class="text-center"><strong><?= formatNumber($activeUser['activity_count']) ?></strong></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </td>
-                
-                <td style="width: 50%; vertical-align: top; padding-left: 10px;">
-                    <h2>PENDAFTARAN TERAKHIR (30 HARI)</h2>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Tanggal</th>
-                                <th style="width: 25%;" class="text-center">Jumlah</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($recentRegistrations)): ?>
-                                <tr>
-                                    <td colspan="2" class="text-center">Tidak ada pendaftaran baru</td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($recentRegistrations as $reg): ?>
-                                    <tr>
-                                        <td><?= formatTanggal($reg['date'], 'd F Y') ?></td>
-                                        <td class="text-center"><strong><?= formatNumber($reg['total']) ?></strong></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </td>
+                <th colspan="3" class="text-right">TOTAL PENGGUNA (SESUAI FILTER):</th>
+                <th colspan="4" class="text-left"><?= formatNumber($total_users) ?></th>
             </tr>
-        </table>
-    </div>
+             <tr>
+                <th colspan="3" class="text-right">TOTAL AKTIF (DARI HASIL):</th>
+                <th colspan="4" class="text-left"><?= formatNumber($total_active) ?></th>
+            </tr>
+            <tr>
+                <th colspan="3" class="text-right">TOTAL ADMIN/SUPERADMIN (DARI HASIL):</th>
+                <th colspan="4" class="text-left"><?= formatNumber($total_admins) ?></th>
+            </tr>
+        </tfoot>
+    </table>
 </body>
 </html>

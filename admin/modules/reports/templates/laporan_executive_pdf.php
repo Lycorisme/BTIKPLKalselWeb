@@ -1,12 +1,12 @@
 <?php
 /**
- * PDF Template: Executive Summary Report (Simple Version)
- * Clean design dengan logo besar di atas - Landscape
+ * PDF Template: Laporan Harian (Executive Summary)
+ * Menampilkan log aktivitas sesuai filter.
  */
 
 // Convert logo to base64
 $logoBase64 = '';
-if ($siteLogo && uploadExists($siteLogo)) {
+if ($siteLogo && function_exists('uploadExists') && uploadExists($siteLogo)) {
     $logoPath = uploadPath($siteLogo);
     if (file_exists($logoPath)) {
         $logoData = file_get_contents($logoPath);
@@ -42,8 +42,8 @@ if ($siteLogo && uploadExists($siteLogo)) {
         }
         
         .header-logo img {
-            height: 100px;
-            max-width: 200px;
+            height: 60px;
+            max-width: 150px;
         }
         
         .header-title {
@@ -75,39 +75,6 @@ if ($siteLogo && uploadExists($siteLogo)) {
             font-size: 10pt;
             color: #666;
             margin-bottom: 15px;
-        }
-        
-        /* Summary Stats Box */
-        .stats-summary {
-            width: 100%;
-            margin: 15px 0;
-            border: 2px solid #000;
-            background-color: #f5f5f5;
-        }
-        
-        .stats-summary td {
-            padding: 10px;
-            text-align: center;
-            border-right: 1px solid #000;
-            width: 20%;
-        }
-        
-        .stats-summary td:last-child {
-            border-right: none;
-        }
-        
-        .stats-label {
-            font-size: 8pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            margin-bottom: 5px;
-            color: #555;
-        }
-        
-        .stats-value {
-            font-size: 16pt;
-            font-weight: bold;
-            color: #000;
         }
         
         /* Main Table */
@@ -143,6 +110,7 @@ if ($siteLogo && uploadExists($siteLogo)) {
             border: 1px solid #000;
             font-size: 8pt;
             vertical-align: middle;
+            word-wrap: break-word; /* Agar deskripsi tidak overflow */
         }
         
         table.data-table tbody tr:nth-child(even) {
@@ -166,40 +134,13 @@ if ($siteLogo && uploadExists($siteLogo)) {
         .text-left {
             text-align: left;
         }
-        
-        .rank-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            background-color: #fff;
-            border: 1px solid #000;
-            font-weight: bold;
-            font-size: 9pt;
-        }
-        
-        .badge {
-            display: inline-block;
-            padding: 2px 6px;
-            background-color: #f0f0f0;
-            border: 1px solid #ccc;
-            font-size: 7pt;
-        }
-        
-        .notes {
-            margin-top: 15px;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border: 1px solid #ccc;
-            font-size: 8pt;
-            line-height: 1.6;
-        }
     </style>
 </head>
 <body>
-    <!-- Header dengan Logo Besar di Atas -->
     <div class="header">
         <?php if ($logoBase64): ?>
             <div class="header-logo">
-                <img src="<?= $logoBase64 ?>" alt="Logo">
+                <img src="<?= $logoBase64 ?>" alt="Logo" style="height: 60px; max-width: 150px;">
             </div>
         <?php endif; ?>
         
@@ -220,97 +161,52 @@ if ($siteLogo && uploadExists($siteLogo)) {
         </div>
     </div>
     
-    <!-- Title -->
-    <h1>EXECUTIVE SUMMARY REPORT</h1>
-    <div class="subtitle">Tanggal: <?= date('d F Y, H:i') ?> WIB</div>
+    <h1>Laporan Harian</h1>
+    <div class="subtitle">
+        <strong>Periode:</strong> <?= htmlspecialchars($filterText) ?>
+        <br>
+        Tanggal Cetak: <?= date('d F Y, H:i') ?> WIB
+    </div>
     
-    <!-- Summary Statistics -->
-    <table class="stats-summary">
-        <tr>
-            <td>
-                <div class="stats-label">Total Posts</div>
-                <div class="stats-value"><?= formatNumber($summaryStats['total_posts']) ?></div>
-            </td>
-            <td>
-                <div class="stats-label">Total Views</div>
-                <div class="stats-value"><?= formatNumber($summaryStats['total_views']) ?></div>
-            </td>
-            <td>
-                <div class="stats-label">Total Likes</div>
-                <div class="stats-value"><?= formatNumber($summaryStats['total_likes']) ?></div>
-            </td>
-            <td>
-                <div class="stats-label">Total Comments</div>
-                <div class="stats-value"><?= formatNumber($summaryStats['total_comments']) ?></div>
-            </td>
-            <td>
-                <div class="stats-label">Avg. Engagement</div>
-                <div class="stats-value"><?= $summaryStats['avg_engagement'] ?>%</div>
-            </td>
-        </tr>
-    </table>
-    
-    <!-- Main Table -->
-    <h2>Top 20 Performing Posts - Detail Report</h2>
+    <h2 style="border-bottom: none; padding-bottom: 2px;">Detail Log Aktivitas (<?= count($mainData) ?> Data)</h2>
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width: 30%;">Judul Post</th>
-                <th style="width: 10%;">Kategori</th>
-                <th style="width: 12%;">Penulis</th>
-                <th style="width: 7%;">Role</th>
-                <th style="width: 7%;">Views</th>
-                <th style="width: 7%;">Likes</th>
-                <th style="width: 7%;">Comments</th>
-                <th style="width: 8%;">Engagement</th>
-                <th style="width: 9%;">Tanggal</th>
+                <th style="width: 4%;">No</th>
+                <th style="width: 15%;">Waktu</th>
+                <th style="width: 10%;">User</th>
+                <th style="width: 8%;">Aksi</th>
+                <th style="width: 10%;">Tipe</th>
+                <th style="width: 43%;">Deskripsi</th>
+                <th style="width: 10%;">IP Address</th>
             </tr>
         </thead>
         <tbody>
             <?php if (empty($mainData)): ?>
                 <tr>
-                    <td colspan="9" class="text-center" style="padding: 20px;">Tidak ada data</td>
+                    <td colspan="7" class="text-center" style="padding: 20px;">Tidak ada data</td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($mainData as $row): ?>
+                <?php $no = 1; foreach ($mainData as $row): ?>
                     <tr>
-                        <td class="text-left">
-                            <strong><?= htmlspecialchars($row['title']) ?></strong>
-                        </td>
-                        <td class="text-center">
-                            <span class="badge"><?= htmlspecialchars($row['category_name']) ?></span>
-                        </td>
-                        <td class="text-left"><?= htmlspecialchars($row['author_name']) ?></td>
-                        <td class="text-center">
-                            <span class="badge"><?= ucfirst($row['author_role']) ?></span>
-                        </td>
-                        <td class="text-center"><strong><?= formatNumber($row['view_count']) ?></strong></td>
-                        <td class="text-center"><?= formatNumber($row['likes']) ?></td>
-                        <td class="text-center"><?= formatNumber($row['comments']) ?></td>
-                        <td class="text-center"><strong><?= $row['engagement_rate'] ?>%</strong></td>
-                        <td class="text-center"><?= formatTanggal($row['created_at'], 'd/m/Y') ?></td>
+                        <td class="text-center"><?= $no ?></td>
+                        <td class="text-center"><?= formatTanggal($row['created_at'], 'd/m/Y H:i:s') ?></td>
+                        <td class="text-center"><?= htmlspecialchars($row['user_name'] ?? 'Guest') ?></td>
+                        <td class="text-center"><?= htmlspecialchars($row['action_type']) ?></td>
+                        <td class="text-center"><?= htmlspecialchars($row['model_type'] ?? '-') ?></td>
+                        <td class="text-left"><?= htmlspecialchars($row['description']) ?></td>
+                        <td class="text-center"><?= htmlspecialchars($row['ip_address']) ?></td>
                     </tr>
+                    <?php $no++; ?>
                 <?php endforeach; ?>
             <?php endif; ?>
         </tbody>
         <tfoot>
             <tr>
-                <th colspan="4" class="text-right">TOTAL:</th>
-                <th class="text-center"><?= formatNumber(array_sum(array_column($mainData, 'view_count'))) ?></th>
-                <th class="text-center"><?= formatNumber(array_sum(array_column($mainData, 'likes'))) ?></th>
-                <th class="text-center"><?= formatNumber(array_sum(array_column($mainData, 'comments'))) ?></th>
-                <th colspan="2"></th>
+                <th colspan="6" class="text-right">TOTAL AKTIVITAS:</th>
+                <th class="text-center"><?= formatNumber(count($mainData)) ?></th>
             </tr>
         </tfoot>
     </table>
-    
-    <!-- Notes -->
-    <div class="notes">
-        <strong>KETERANGAN:</strong><br>
-        Engagement Rate = (Likes + Comments) / Views × 100%<br>
-        Data diurutkan berdasarkan jumlah views tertinggi<br>
-        Hanya menampilkan post dengan status "published"<br>
-        Laporan ini menampilkan 20 post dengan performa terbaik berdasarkan jumlah views
-    </div>
 </body>
 </html>
