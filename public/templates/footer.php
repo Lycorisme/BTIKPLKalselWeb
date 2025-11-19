@@ -1,7 +1,6 @@
 <?php
 /**
  * Public Footer Template
- * Includes: Footer content, JavaScript libraries
  */
 
 // Get footer settings
@@ -20,16 +19,12 @@ $social_media = [
     'tiktok' => ['url' => getSetting('social_tiktok'), 'icon' => 'fab fa-tiktok', 'name' => 'TikTok'],
 ];
 
-// Filter hanya yang ada URL nya
 $active_socials = array_filter($social_media, function($social) {
     return !empty($social['url']);
 });
 ?>
-        </div>
-        <!-- End Barba Container -->
-        
     </div>
-    <!-- End Barba Wrapper -->
+    <!-- End Main Content -->
     
     <!-- Footer -->
     <footer class="bg-gray-900 text-white py-12">
@@ -41,7 +36,6 @@ $active_socials = array_filter($social_media, function($social) {
                     <h3 class="text-xl font-bold mb-4"><?= getSetting('site_name', 'BTIKP Kalsel') ?></h3>
                     <p class="text-gray-400 mb-4"><?= $footer_about ?></p>
                     
-                    <!-- Social Media Icons -->
                     <?php if (!empty($active_socials)): ?>
                     <div class="flex flex-wrap gap-2">
                         <?php foreach ($active_socials as $platform => $social): ?>
@@ -131,7 +125,7 @@ $active_socials = array_filter($social_media, function($social) {
                 <input type="text" name="q" placeholder="Cari berita, layanan, atau halaman..." 
                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                        autofocus>
-                <button type="submit" class="mt-4 w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
+                <button type="submit" class="mt-4 w-full btn-primary">
                     <i class="fas fa-search mr-2"></i> Cari
                 </button>
             </form>
@@ -142,43 +136,21 @@ $active_socials = array_filter($social_media, function($social) {
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     
-    <!-- Custom Scripts -->
+    <!-- Custom JavaScript (Centralized) -->
+    <script src="<?= BASE_URL ?>assets/js/custom.js?v=1.0"></script>
+    
+    <!-- Apply Theme Colors from Settings -->
     <script>
-        // Mobile menu toggle
-        function toggleMobileMenu() {
-            const menu = document.getElementById('mobileMenu');
-            menu.classList.toggle('hidden');
+        // Apply theme colors dynamically
+        if (window.BTIKPKalsel && window.BTIKPKalsel.applyThemeColors) {
+            BTIKPKalsel.applyThemeColors({
+                primary: '<?= getSetting('public_theme_primary_color', '#667eea') ?>',
+                secondary: '<?= getSetting('public_theme_secondary_color', '#764ba2') ?>',
+                accent: '<?= getSetting('public_theme_accent_color', '#f093fb') ?>',
+                text: '<?= getSetting('public_theme_text_color', '#333333') ?>',
+                background: '<?= getSetting('public_theme_background_color', '#ffffff') ?>'
+            });
         }
-        
-        // Search modal
-        function openSearchModal() {
-            document.getElementById('searchModal').classList.remove('hidden');
-        }
-        
-        function closeSearchModal() {
-            document.getElementById('searchModal').classList.add('hidden');
-        }
-        
-        // Close modal on ESC key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeSearchModal();
-            }
-        });
-        
-        // Close modal on background click
-        document.getElementById('searchModal')?.addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeSearchModal();
-            }
-        });
-        
-        // Initialize AOS
-        AOS.init({
-            duration: 800,
-            once: true,
-            offset: 100
-        });
     </script>
 </body>
 </html>

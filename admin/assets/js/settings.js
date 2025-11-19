@@ -120,8 +120,13 @@
             const btnPreview = document.getElementById('btnPreview');
             const originalBtnText = btnPreview.innerHTML;
             btnPreview.disabled = true;
-            btnPreview.innerHTML = `<i class="bi bi-arrow-repeat"></i> Memuat...`;
             
+            // ================================================================
+            // == [PERUBAHAN 1] Menggunakan Mazer Spinner untuk "Memuat..."
+            // ================================================================
+            btnPreview.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Memuat...`;
+            // ================================================================
+
             loadNotificationTheme(themeName)
                 .then(() => {
                     notify.confirm({
@@ -135,12 +140,20 @@
                             isPreviewOnCooldown = true;
                             
                             let countdown = COOLDOWN_SECONDS;
-                            btnPreview.innerHTML = `<i class="bi bi-stopwatch"></i> Cooldown (${countdown}s)`;
                             
+                            // ================================================================
+                            // == [PERUBAHAN 2] Menggunakan Mazer Spinner untuk "Cooldown"
+                            // ================================================================
+                            btnPreview.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Cooldown (${countdown}s)`;
+                            // ================================================================
+
                             const interval = setInterval(() => {
                                 countdown--;
                                 if (countdown > 0) {
-                                    btnPreview.innerHTML = `<i class="bi bi-stopwatch"></i> Cooldown (${countdown}s)`;
+                                    // ================================================================
+                                    // == [PERUBAHAN 3] Update Teks Cooldown dengan Mazer Spinner
+                                    // ================================================================
+                                    btnPreview.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Cooldown (${countdown}s)`;
                                 } else {
                                     clearInterval(interval);
                                 }
@@ -149,7 +162,7 @@
                             setTimeout(() => {
                                 isPreviewOnCooldown = false;
                                 btnPreview.disabled = false;
-                                btnPreview.innerHTML = originalBtnText;
+                                btnPreview.innerHTML = originalBtnText; // Restore ke teks asli
                                 // REVERT: Kembalikan ke tema yang tersimpan
                                 loadNotificationTheme(CURRENT_THEME);
                             }, COOLDOWN_SECONDS * 1000);
@@ -164,7 +177,7 @@
                         onCancel: () => {
                             isPreviewOnCooldown = false;
                             btnPreview.disabled = false;
-                            btnPreview.innerHTML = originalBtnText;
+                            btnPreview.innerHTML = originalBtnText; // Restore ke teks asli
                             // REVERT: Kembalikan ke tema yang tersimpan
                             loadNotificationTheme(CURRENT_THEME);
                         }
@@ -174,7 +187,7 @@
                     notify.error(`Gagal memuat preview: ${errorMsg}`);
                     isPreviewOnCooldown = false;
                     btnPreview.disabled = false;
-                    btnPreview.innerHTML = originalBtnText;
+                    btnPreview.innerHTML = originalBtnText; // Restore ke teks asli
                     // REVERT: Kembalikan ke tema yang tersimpan
                     loadNotificationTheme(CURRENT_THEME);
                 });

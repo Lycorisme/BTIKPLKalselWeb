@@ -19,7 +19,6 @@ if (!hasRole(['super_admin', 'admin'])) {
 // Get filters
  $dateFrom = $_GET['date_from'] ?? '';
  $dateTo = $_GET['date_to'] ?? '';
- $categoryId = $_GET['category_id'] ?? '';
  $uploaderId = $_GET['uploader_id'] ?? '';
  $fileType = $_GET['file_type'] ?? '';
  $isActive = $_GET['is_active'] ?? ''; // Filter status
@@ -29,10 +28,6 @@ if (!hasRole(['super_admin', 'admin'])) {
 
 // Per page options
  $perPageOptions = [10, 25, 50, 100, 200];
-
-// Get categories for filter
- $categoriesStmt = $db->query("SELECT id, name FROM file_categories WHERE is_active = 1 ORDER BY name ASC");
- $categories = $categoriesStmt->fetchAll();
 
 // Get uploaders for filter
  $authorsStmt = $db->query("SELECT id, name FROM users WHERE deleted_at IS NULL AND role IN ('super_admin', 'admin', 'editor', 'author') ORDER BY name ASC");
@@ -56,11 +51,6 @@ if ($dateTo) {
     $params[':date_to'] = $dateTo;
 }
 
-if ($categoryId) {
-    $whereConditions[] = "df.category_id = :category_id";
-    $params[':category_id'] = $categoryId;
-}
-
 if ($uploaderId) {
     $whereConditions[] = "df.uploaded_by = :uploader_id";
     $params[':uploader_id'] = $uploaderId;
@@ -81,7 +71,6 @@ if ($isActive !== '') {
 // === MAIN DATA QUERY (untuk statistik dan tabel) ===
  $sqlBase = "
     FROM downloadable_files df
-    LEFT JOIN file_categories fc ON df.category_id = fc.id
     LEFT JOIN users u ON df.uploaded_by = u.id
     WHERE $whereClause
 ";
@@ -135,7 +124,6 @@ if ($isActive !== '') {
  $sql = "
     SELECT 
         df.id, df.title, df.file_type, df.download_count, df.created_at, df.is_active, df.file_size,
-        fc.name as category_name,
         u.name as uploader_name
     $sqlBase
     ORDER BY df.created_at DESC
@@ -157,7 +145,6 @@ if ($exportPdf === '1') {
     $pdfSql = "
         SELECT 
             df.id, df.title, df.file_type, df.download_count, df.created_at, df.is_active, df.file_size,
-            fc.name as category_name,
             u.name as uploader_name
         $sqlBase
         ORDER BY df.created_at DESC
@@ -286,17 +273,6 @@ include '../../includes/header.php';
                         <input type="date" name="date_to" class="form-control" value="<?= htmlspecialchars($dateTo) ?>">
                     </div>
                     <div class="col-12 col-md-3">
-                        <label class="form-label">Kategori</label>
-                        <select name="category_id" class="form-select">
-                            <option value="">-- Semua --</option>
-                            <?php foreach ($categories as $cat): ?>
-                                <option value="<?= $cat['id'] ?>" <?= $categoryId == $cat['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($cat['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-12 col-md-3">
                         <label class="form-label">Uploader</label>
                         <select name="uploader_id" class="form-select">
                             <option value="">-- Semua --</option>
@@ -335,12 +311,13 @@ include '../../includes/header.php';
                         </select>
                     </div>
                     <div class="col-6 col-md-3">
+                         <label class="form-label">&nbsp;</label>
                         <button type="submit" class="btn btn-primary w-100">
                             <i class="bi bi-funnel"></i> Filter
                         </button>
                     </div>
                 </form>
-                <?php if ($dateFrom || $dateTo || $categoryId || $uploaderId || $fileType || $isActive !== ''): ?>
+                <?php if ($dateFrom || $dateTo || $uploaderId || $fileType || $isActive !== ''): ?>
                     <div class="mt-2">
                         <a href="?" class="btn btn-sm btn-secondary">
                             <i class="bi bi-x-circle"></i> Reset Filter
@@ -356,7 +333,7 @@ include '../../includes/header.php';
                     <div class="flex-grow-1">
                         <h6 class="mb-1">Laporan Detail File Download</h6>
                         <small class="text-muted">Tanggal Generate: <?= date('d F Y, H:i') ?> WIB</small>
-                        <?php if ($dateFrom || $dateTo || $categoryId || $uploaderId || $fileType || $isActive !== ''): ?>
+                        <?php if ($dateFrom || $dateTo || $uploaderId || $fileType || $isActive !== ''): ?>
                             <br><span class="badge bg-info mt-1">Filter Aktif</span>
                         <?php endif; ?>
                     </div>
@@ -385,7 +362,6 @@ include '../../includes/header.php';
                                 <th style="width: 50px;">No</th>
                                 <th>Nama File</th>
                                 <th>Tipe</th>
-                                <th>Kategori</th>
                                 <th>Uploader</th>
                                 <th>Status</th>
                                 <th>Downloads</th>
@@ -396,7 +372,7 @@ include '../../includes/header.php';
                         <tbody>
                             <?php if (empty($mainData)): ?>
                                 <tr>
-                                    <td colspan="9" class="text-center text-muted py-4">Tidak ada data file</td>
+                                    <td colspan="8" class="text-center text-muted py-4">Tidak ada data file</td>
                                 </tr>
                             <?php else: ?>
                                 <?php 
@@ -411,7 +387,6 @@ include '../../includes/header.php';
                                         <td class="text-center">
                                             <span class="badge bg-light-secondary"><?= htmlspecialchars($row['file_type']) ?></span>
                                         </td>
-                                        <td class="text-center"><?= htmlspecialchars($row['category_name'] ?? '-') ?></td>
                                         <td class="text-center"><?= htmlspecialchars($row['uploader_name'] ?? '-') ?></td>
                                         <td class="text-center">
                                             <?php if ($row['is_active']): ?>

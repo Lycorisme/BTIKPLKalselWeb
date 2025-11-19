@@ -297,7 +297,7 @@ include '../../includes/header.php';
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
                     <div>
                         <small class="text-muted">
-                            Hal <?= $page ?>/<?= $totalPages ?> · <?= count($users) ?> dari <?= $totalItems ?>
+                            Halaman <?= $page ?> dari <?= $totalPages ?> · Menampilkan <?= count($users) ?> dari <?= $totalItems ?> Pengguna
                         </small>
                     </div>
                     <nav aria-label="Page navigation">

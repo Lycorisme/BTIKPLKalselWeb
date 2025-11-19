@@ -187,9 +187,8 @@ $total_size_pdf = array_sum(array_column($mainData, 'file_size'));
         <thead>
             <tr>
                 <th style="width: 4%;">No</th>
-                <th style="width: 28%;">Nama File</th>
+                <th style="width: 43%;">Nama File</th>
                 <th style="width: 7%;">Tipe</th>
-                <th style="width: 15%;">Kategori</th>
                 <th style="width: 15%;">Uploader</th>
                 <th style="width: 8%;">Status</th>
                 <th style="width: 9%;">Downloads</th>
@@ -200,7 +199,7 @@ $total_size_pdf = array_sum(array_column($mainData, 'file_size'));
         <tbody>
             <?php if (empty($mainData)): ?>
                 <tr>
-                    <td colspan="9" class="text-center" style="padding: 20px;">Tidak ada data file</td>
+                    <td colspan="8" class="text-center" style="padding: 20px;">Tidak ada data file</td>
                 </tr>
             <?php else: ?>
                 <?php $no = 1; foreach ($mainData as $row): ?>
@@ -210,7 +209,6 @@ $total_size_pdf = array_sum(array_column($mainData, 'file_size'));
                             <strong><?= htmlspecialchars($row['title']) ?></strong>
                         </td>
                         <td class="text-center"><?= htmlspecialchars($row['file_type']) ?></td>
-                        <td class="text-center"><?= htmlspecialchars($row['category_name'] ?? '-') ?></td>
                         <td class="text-center"><?= htmlspecialchars($row['uploader_name'] ?? '-') ?></td>
                         <td class="text-center">
                             <?php if ($row['is_active']): ?>
@@ -229,15 +227,15 @@ $total_size_pdf = array_sum(array_column($mainData, 'file_size'));
         </tbody>
         <tfoot>
             <tr>
-                <th colspan="6" class="text-right">TOTAL FILE (SESUAI FILTER):</th>
+                <th colspan="5" class="text-right">TOTAL FILE (SESUAI FILTER):</th>
                 <th colspan="3" class="text-left"><?= formatNumber(count($mainData)) ?></th>
             </tr>
             <tr>
-                <th colspan="6" class="text-right">TOTAL DOWNLOADS:</th>
+                <th colspan="5" class_="text-right">TOTAL DOWNLOADS:</th>
                 <th colspan="3" class="text-left"><?= formatNumber($total_downloads_pdf) ?></th>
             </tr>
             <tr>
-                <th colspan="6" class="text-right">TOTAL UKURAN:</th>
+                <th colspan="5" class_="text-right">TOTAL UKURAN:</th>
                 <th colspan="3" class="text-left"><?= formatUkuranFile($total_size_pdf) ?></th>
             </tr>
         </tfoot>

@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $updated = 0;
             
             // Process checkbox values
-            $checkboxFields = ['site_logo_show_text'];
+            $checkboxFields = ['site_logo_show_text', 'site_maintenance_mode'];
             foreach ($checkboxFields as $field) {
                 if (!isset($_POST[$field])) {
                     $_POST[$field] = '0';
@@ -156,8 +156,7 @@ include '../../includes/header.php';
             <?= csrfField() ?>
             
             <div class="row">
-                <div class="col-lg-6">
-                    <div class="card">
+                <div class="col-lg-6"> <div class="card">
                         <div class="card-header">
                             <h5 class="card-title mb-0">
                                 <i class="bi bi-gear"></i> Pengaturan Umum
@@ -284,7 +283,7 @@ include '../../includes/header.php';
                                 <i class="bi bi-bell"></i> Gaya Notifikasi & Alert
                             </h5>
                         </div>
-                        <div class="card-body">                            
+                        <div class="card-body">                               
                             <?php
                             $themeStyles = [
                                 'alecto-final-blow' => 'Alecto: Final Blow',
@@ -310,7 +309,7 @@ include '../../includes/header.php';
                                 </select>
                             </div>
                             <div class="mt-4 pt-3 border-top">
-                                <button type="button" class="btn btn-info btn-lg" 
+                                <button type="button" class="btn btn-primary btn-lg" 
                                         onclick="previewTheme()" 
                                         id="btnPreview">
                                     <i class="bi bi-eye"></i> Preview
@@ -318,10 +317,35 @@ include '../../includes/header.php';
                             </div>
                         </div>
                     </div>
+
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-wrench"></i> Mode Maintenance
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group mb-3">
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" name="site_maintenance_mode" id="site_maintenance_mode"
+                                            class="form-check-input"
+                                            value="1" <?= ($settings['site_maintenance_mode'] ?? '0') == '1' ? 'checked' : '' ?>>
+                                    <label class="form-check-label fw-bold" for="site_maintenance_mode">
+                                        Aktifkan Mode Maintenance
+                                    </label>
+                                </div>
+                                <small class="text-muted">Jika diaktifkan, halaman public akan menampilkan halaman maintenance. Admin tetap bisa mengakses dashboard.</small>
+                            </div>
+                                    
+                            <div class="form-group mb-0">
+                                <label class="form-label">Pesan Maintenance</label>
+                                <textarea name="site_maintenance_message" class="form-control" rows="3"><?= htmlspecialchars($settings['site_maintenance_message'] ?? 'Website sedang dalam pemeliharaan. Silakan kembali beberapa saat lagi.') ?></textarea>
+                                <small class="text-muted">Pesan yang akan ditampilkan pada halaman maintenance</small>
+                            </div>
+                        </div>
                     </div>
-                
-                <div class="col-lg-6">
-                    <div class="card">
+
+                    </div> <div class="col-lg-6"> <div class="card">
                         <div class="card-header">
                             <h5 class="card-title mb-0">
                                 <i class="bi bi-telephone"></i> Informasi Kontak
@@ -511,8 +535,79 @@ include '../../includes/header.php';
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
+
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-palette-fill"></i> Theme Warna Halaman Public
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-3">
+                                <i class="bi bi-info-circle"></i> Warna-warna ini akan diterapkan menggunakan CSS variables pada halaman public.
+                            </p>
+                                    
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Primary Color</label>
+                                        <input type="color" name="public_theme_primary_color" class="form-control"
+                                                value="<?= htmlspecialchars($settings['public_theme_primary_color'] ?? '#667eea') ?>"
+                                               style="height: 50px;">
+                                        <small class="text-muted">Warna utama (button, link, header)</small>
+                                    </div>
+                                </div>
+                                            
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Secondary Color</label>
+                                        <input type="color" name="public_theme_secondary_color" class="form-control"
+                                                value="<?= htmlspecialchars($settings['public_theme_secondary_color'] ?? '#764ba2') ?>"
+                                               style="height: 50px;">
+                                        <small class="text-muted">Warna sekunder (hover, accent)</small>
+                                    </div>
+                                </div>
+                                            
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Accent Color</label>
+                                        <input type="color" name="public_theme_accent_color" class="form-control"
+                                                value="<?= htmlspecialchars($settings['public_theme_accent_color'] ?? '#f093fb') ?>"
+                                               style="height: 50px;">
+                                        <small class="text-muted">Warna highlight/badge</small>
+                                    </div>
+                                </div>
+                                            
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Text Color</label>
+                                        <input type="color" name="public_theme_text_color" class="form-control"
+                                                value="<?= htmlspecialchars($settings['public_theme_text_color'] ?? '#333333') ?>"
+                                               style="height: 50px;">
+                                        <small class="text-muted">Warna teks utama</small>
+                                    </div>
+                                </div>
+                                            
+                                <div class="col-md-12">
+                                    <div class="form-group mb-0">
+                                        <label class="form-label">Background Color</label>
+                                        <input type="color" name="public_theme_background_color" class="form-control"
+                                                value="<?= htmlspecialchars($settings['public_theme_background_color'] ?? '#ffffff') ?>"
+                                               style="height: 50px;">
+                                        <small class="text-muted">Warna background utama</small>
+                                    </div>
+                                </div>
+                            </div>
+                                    
+                            <div class="mt-3 pt-3 border-top">
+                                <button type="button" class="btn btn-info" onclick="resetThemeColors()">
+                                    <i class="bi bi-arrow-clockwise"></i> Reset ke Default
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div> </div>
             
             <div class="row mt-3">
                 <div class="col-12">
@@ -543,7 +638,8 @@ include '../../includes/header.php';
     var CURRENT_THEME = '<?= $settings['notification_alert_theme'] ?? 'alecto-final-blow' ?>';
 </script>
 
-<script src="<?= ADMIN_URL ?>assets/js/settings.js?v=1.2"></script> <script>
+<script src="<?= ADMIN_URL ?>assets/js/settings.js?v=1.2"></script> 
+<script>
 function toggleBackgroundFields(type) {
     if (type === 'login') {
         const bgType = document.querySelector('input[name="login_background_type"]:checked').value;
@@ -626,6 +722,35 @@ function previewTheme() {
 // ==========================================================
 // == [AKHIR PERUBAHAN JAVASCRIPT] ==
 // ==========================================================
+
+
+// ==========================================================
+// == [SNIPPET JAVASCRIPT BARU]
+// ==========================================================
+// Checkbox maintenance mode handler
+function updateCheckboxValue(checkbox) {
+    checkbox.value = checkbox.checked ? '1' : '0';
+}
+
+// Reset theme colors to default
+function resetThemeColors() {
+    notify.confirm({
+        type: 'warning',
+        title: 'Reset Theme Warna?',
+        message: 'Semua warna akan dikembalikan ke pengaturan default. Lanjutkan?',
+        confirmText: 'Ya, Reset',
+        cancelText: 'Batal',
+        onConfirm: function() {
+            document.querySelector('input[name="public_theme_primary_color"]').value = '#667eea';
+            document.querySelector('input[name="public_theme_secondary_color"]').value = '#764ba2';
+            document.querySelector('input[name="public_theme_accent_color"]').value = '#f093fb';
+            document.querySelector('input[name="public_theme_text_color"]').value = '#333333';
+            document.querySelector('input[name="public_theme_background_color"]').value = '#ffffff';
+                        
+            notify.success('Theme warna berhasil direset ke default!');
+        }
+    });
+}
 </script>
 
 <?php include '../../includes/footer.php'; ?>

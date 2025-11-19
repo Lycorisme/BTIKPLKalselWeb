@@ -1,8 +1,8 @@
 <?php
 /**
- * Report: Laporan Harian (Executive Summary)
- * Fokus pada ringkasan aktivitas global harian.
- * Sesuai standar laporan executive (versi baru).
+ * Report: Laporan Harian (Executive Summary) - Versi Simple Growth
+ * Fokus pada 4 metrik growth.
+ * Logika ditulis ulang di PHP agar kompatibel dengan MySQL 5.7 (No WITH/LAG).
  */
 require_once '../../includes/auth_check.php';
 require_once '../../../core/Database.php';
@@ -14,138 +14,162 @@ if (!hasRole(['super_admin', 'admin'])) {
     redirect(ADMIN_URL);
 }
 
- $pageTitle = 'Laporan Harian';
- $db = Database::getInstance()->getConnection();
+$pageTitle = 'Laporan Harian (Growth Summary)';
+$db = Database::getInstance()->getConnection();
+$exportPdf = $_GET['export_pdf'] ?? '';
 
-// Get filters - Default ke HARI INI
- $today = date('Y-m-d');
- $dateFrom = $_GET['date_from'] ?? $today;
- $dateTo = $_GET['date_to'] ?? $today;
- $actionType = $_GET['action_type'] ?? '';
- $perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
- $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
- $exportPdf = $_GET['export_pdf'] ?? '';
+// === HELPER FUNCTIONS (Lokal untuk file ini) ===
 
-// Per page options
- $perPageOptions = [10, 25, 50, 100, 200];
-
-// Get action types for filter (dari activity_logs)
- $actionTypesStmt = $db->query("SELECT DISTINCT action_type FROM activity_logs WHERE action_type IS NOT NULL AND action_type != '' ORDER BY action_type ASC");
- $actionTypes = $actionTypesStmt->fetchAll(PDO::FETCH_COLUMN);
-
-// === SUMMARY STATISTICS (4 Kartu) - Berdasarkan Filter Tanggal ===
- $summaryStats = [
-    'posts_today' => 0,
-    'views_today' => 0,
-    'downloads_today' => 0,
-    'messages_today' => 0,
-];
-
-// Build date-only params
- $paramsDateOnly = [
-    ':date_from' => $dateFrom,
-    ':date_to' => $dateTo
-];
-
-// 1. Total Post Terbit
- $postsSql = "SELECT COUNT(*) FROM posts WHERE status = 'published' AND DATE(published_at) >= :date_from AND DATE(published_at) <= :date_to";
- $postsStmt = $db->prepare($postsSql);
- $postsStmt->execute($paramsDateOnly);
- $summaryStats['posts_today'] = $postsStmt->fetchColumn();
-
-// 2. Total Views
- $viewsSql = "SELECT COUNT(*) FROM page_views WHERE DATE(created_at) >= :date_from AND DATE(created_at) <= :date_to";
- $viewsStmt = $db->prepare($viewsSql);
- $viewsStmt->execute($paramsDateOnly);
- $summaryStats['views_today'] = $viewsStmt->fetchColumn();
-
-// 3. Total Download File
- $downloadsSql = "SELECT COUNT(*) FROM activity_logs WHERE action_type = 'DOWNLOAD' AND DATE(created_at) >= :date_from AND DATE(created_at) <= :date_to";
- $downloadsStmt = $db->prepare($downloadsSql);
- $downloadsStmt->execute($paramsDateOnly);
- $summaryStats['downloads_today'] = $downloadsStmt->fetchColumn();
-
-// 4. Total Pesan Masuk
- $messagesSql = "SELECT COUNT(*) FROM contact_messages WHERE DATE(created_at) >= :date_from AND DATE(created_at) <= :date_to";
- $messagesStmt = $db->prepare($messagesSql);
- $messagesStmt->execute($paramsDateOnly);
- $summaryStats['messages_today'] = $messagesStmt->fetchColumn();
-
-
-// === MAIN DATA (Activity Logs) - Based on Filters ===
- $whereConditions = ["DATE(al.created_at) >= :date_from", "DATE(al.created_at) <= :date_to"];
- $params = [
-    ':date_from' => $dateFrom,
-    ':date_to' => $dateTo
-];
-
-if ($actionType) {
-    $whereConditions[] = "al.action_type = :action_type";
-    $params[':action_type'] = $actionType;
+/**
+ * Menghitung pertumbuhan persentase dengan aman (mencegah pembagian nol).
+ */
+function calculateGrowthRate($today, $yesterday) {
+    if ($yesterday == 0) {
+        // Jika kemarin 0 dan hari ini > 0, itu adalah pertumbuhan besar (kita set 100%)
+        return ($today > 0) ? 100.00 : 0.00;
+    }
+    return round((($today - $yesterday) / $yesterday) * 100, 2);
 }
 
- $whereClause = implode(' AND ', $whereConditions);
-
-// Count total items
- $countSql = "SELECT COUNT(*) as total FROM activity_logs al WHERE $whereClause";
- $countStmt = $db->prepare($countSql);
- $countStmt->execute($params);
- $totalItems = $countStmt->fetch()['total'];
- $totalPages = ceil($totalItems / $perPage);
-
-// Calculate offset for pagination
- $offset = ($page - 1) * $perPage;
-
-// Get data for main table
- $sql = "
-    SELECT al.* FROM activity_logs al
-    WHERE $whereClause
-    ORDER BY al.created_at DESC
-    LIMIT :limit OFFSET :offset
-";
-
- $mainDataStmt = $db->prepare($sql);
-foreach ($params as $key => $value) {
-    $mainDataStmt->bindValue($key, $value);
+/**
+ * Memberikan kelas warna CSS berdasarkan nilai growth.
+ */
+function getGrowthColorClass($growth) {
+    if ($growth > 0) return 'text-success';
+    if ($growth < 0) return 'text-danger';
+    return 'text-muted'; // Stabil
 }
- $mainDataStmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
- $mainDataStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
- $mainDataStmt->execute();
- $mainData = $mainDataStmt->fetchAll();
 
-// Export PDF (export all data without pagination)
-if ($exportPdf === '1') {
-    // Get all data for PDF
-    $pdfSql = "
-        SELECT al.* FROM activity_logs al
-        WHERE $whereClause
-        ORDER BY al.created_at DESC
-    ";
-    $pdfDataStmt = $db->prepare($pdfSql);
-    $pdfDataStmt->execute($params);
-    $mainData = $pdfDataStmt->fetchAll(); // Override mainData for PDF export
+/**
+ * Memberikan ikon CSS berdasarkan nilai growth.
+ */
+function getGrowthIcon($growth) {
+    if ($growth > 0) return 'bi-arrow-up-right';
+    if ($growth < 0) return 'bi-arrow-down-right';
+    return 'bi-arrow-right';
+}
+
+// === 1. PENGUMPULAN DATA (15 HARI TERAKHIR) ===
+// Kita ambil 15 hari agar hari pertama (14 hari lalu) punya data 'kemarin'
+$startDate = date('Y-m-d', strtotime('-15 days'));
+$params = [':start_date' => $startDate];
+$masterData = [];
+
+// Query 1: Post Baru (Berdasarkan TANGGAL BUAT, BUKAN PUBLISH - Sesuai SQL Anda)
+$postSql = "
+    SELECT DATE(created_at) as tanggal, COUNT(*) as post_baru
+    FROM posts
+    WHERE created_at >= :start_date AND deleted_at IS NULL AND status = 'published'
+    GROUP BY DATE(created_at)";
+$postMetrics = $db->prepare($postSql);
+$postMetrics->execute($params);
+$postData = $postMetrics->fetchAll(PDO::FETCH_KEY_PAIR);
+
+// Query 2: Views (Menggunakan tabel 'page_views' yang benar)
+$viewSql = "
+    SELECT DATE(created_at) as tanggal, COUNT(*) as total_views
+    FROM page_views 
+    WHERE created_at >= :start_date
+    GROUP BY DATE(created_at)";
+$viewMetrics = $db->prepare($viewSql);
+$viewMetrics->execute($params);
+$viewData = $viewMetrics->fetchAll(PDO::FETCH_KEY_PAIR);
+
+
+// Query 3: User Baru
+$userSql = "
+    SELECT DATE(created_at) as tanggal, COUNT(*) as new_users
+    FROM users
+    WHERE created_at >= :start_date AND deleted_at IS NULL
+    GROUP BY DATE(created_at)";
+$userMetrics = $db->prepare($userSql);
+$userMetrics->execute($params);
+$userData = $userMetrics->fetchAll(PDO::FETCH_KEY_PAIR);
+
+// Query 4: Engagement (Likes + Comments) - Menggunakan '?' untuk kompatibilitas UNION
+$engSql = "
+    SELECT DATE(created_at) as tanggal, COUNT(*) as total_engagement
+    FROM (
+        SELECT created_at FROM post_likes WHERE created_at >= ?
+        UNION ALL
+        SELECT created_at FROM comments WHERE created_at >= ? AND status = 'approved'
+    ) combined
+    GROUP BY DATE(created_at)";
+$engMetrics = $db->prepare($engSql);
+$engMetrics->execute([$startDate, $startDate]); // Bind 2x
+$engData = $engMetrics->fetchAll(PDO::FETCH_KEY_PAIR);
+
+// === 2. MEMBUAT DATASET GABUNGAN (15 HARI) ===
+for ($i = 15; $i >= 0; $i--) {
+    $date = date('Y-m-d', strtotime("-$i days"));
+    $masterData[$date] = [
+        'tanggal' => $date,
+        'post_baru' => (int)($postData[$date] ?? 0),
+        'total_views' => (int)($viewData[$date] ?? 0),
+        'new_users' => (int)($userData[$date] ?? 0),
+        'total_engagement' => (int)($engData[$date] ?? 0)
+    ];
+}
+
+// === 3. MENGHITUNG DELTA & GROWTH SCORE (Untuk Tabel 14 Hari) ===
+$tableData = [];
+$masterKeys = array_keys($masterData); // Daftar 16 tanggal (0-15)
+
+// Kita loop dari index 1 (14 hari lalu) sampai akhir
+for ($i = 1; $i < count($masterKeys); $i++) {
+    $currentDate = $masterKeys[$i];
+    $prevDate = $masterKeys[$i - 1];
     
-    // Siapkan variabel untuk template
+    $currentStats = $masterData[$currentDate];
+    $prevStats = $masterData[$prevDate];
+    
+    // Hitung semua delta
+    $delta_post_persen = calculateGrowthRate($currentStats['post_baru'], $prevStats['post_baru']);
+    $delta_views_persen = calculateGrowthRate($currentStats['total_views'], $prevStats['total_views']);
+    $delta_users_persen = calculateGrowthRate($currentStats['new_users'], $prevStats['new_users']);
+    $delta_engagement_persen = calculateGrowthRate($currentStats['total_engagement'], $prevStats['total_engagement']);
+    
+    $tableData[$currentDate] = $currentStats + [
+        'delta_post_persen' => $delta_post_persen,
+        'delta_views_persen' => $delta_views_persen,
+        'delta_users_persen' => $delta_users_persen,
+        'delta_engagement_persen' => $delta_engagement_persen,
+    ];
+}
+
+// Balik urutan array agar tanggal terbaru di atas
+$tableData = array_reverse($tableData);
+
+
+// === 4. STATISTIK UNTUK 4 KARTU (Hari Ini vs Kemarin) ===
+$today = date('Y-m-d');
+$yesterday = date('Y-m-d', strtotime('-1 day'));
+
+$todayStats = $masterData[$today] ?? $masterData[end($masterKeys)]; 
+$yesterdayStats = $masterData[$yesterday] ?? $masterData[prev($masterKeys)];
+
+$summaryStats = [
+    'content_growth' => calculateGrowthRate($todayStats['post_baru'], $yesterdayStats['post_baru']),
+    'traffic_growth' => calculateGrowthRate($todayStats['total_views'], $yesterdayStats['total_views']),
+    'user_growth' => calculateGrowthRate($todayStats['new_users'], $yesterdayStats['new_users']),
+    'engagement_growth' => calculateGrowthRate($todayStats['total_engagement'], $yesterdayStats['total_engagement']),
+];
+
+
+// === 5. EXPORT PDF ===
+if ($exportPdf === '1') {
     $siteName = getSetting('site_name', 'BTIKP Kalimantan Selatan');
     $contactPhone = getSetting('contact_phone', '');
     $contactEmail = getSetting('contact_email', '');
     $contactAddress = getSetting('contact_address', '');
     $siteLogo = getSetting('site_logo', '');
 
-    // Buat Filter Text untuk PDF
-    $filterInfo = [];
-    $filterInfo[] = "Dari: " . formatTanggal($dateFrom, 'd/m/Y');
-    $filterInfo[] = "Sampai: " . formatTanggal($dateTo, 'd/m/Y');
-    if ($actionType) $filterInfo[] = "Aksi: " . $actionType;
-    $filterText = implode(' | ', $filterInfo);
-
-
     $mpdf = new \Mpdf\Mpdf([
         'mode' => 'utf-8',
         'format' => 'A4',
         'orientation' => 'L', // Landscape
-        'margin_left' => 15,
-        'margin_right' => 15,
+        'margin_left' => 10,
+        'margin_right' => 10,
         'margin_top' => 10,
         'margin_bottom' => 20,
         'margin_header' => 0,
@@ -157,7 +181,7 @@ if ($exportPdf === '1') {
         <table width="100%" style="border-top: 1px solid #000; padding-top: 5px; font-size: 9pt;">
             <tr>
                 <td width="70%" style="text-align: left;">
-                    ' . htmlspecialchars($siteName) . ' - Laporan Harian
+                    ' . htmlspecialchars($siteName ?? '') . ' - Laporan Harian (Simple Growth)
                 </td>
                 <td width="30%" style="text-align: right;">
                     Halaman {PAGENO} dari {nbpg}
@@ -167,12 +191,12 @@ if ($exportPdf === '1') {
     $mpdf->SetHTMLFooter($footer);
 
     ob_start();
-    // Menggunakan template PDF yang di-override
+    // $tableData dan $summaryStats akan digunakan di dalam file PDF
     include dirname(__FILE__) . '/templates/laporan_executive_pdf.php';
     $html = ob_get_clean();
 
     $mpdf->WriteHTML($html);
-    $mpdf->Output('Laporan_Harian_' . date('Ymd_His') . '.pdf', 'I');
+    $mpdf->Output('Laporan_Simple_Growth_' . date('Ymd_His') . '.pdf', 'I');
     exit;
 }
 
@@ -183,8 +207,8 @@ include '../../includes/header.php';
     <div class="page-title">
         <div class="row">
             <div class="col-12 col-md-6">
-                <h3><?= $pageTitle ?></h3>
-                <p class="text-subtitle text-muted">Ringkasan global aktivitas utama portal.</p>
+                <h3><?= htmlspecialchars($pageTitle) ?></h3>
+                <p class="text-subtitle text-muted">Ringkasan pertumbuhan website harian (vs kemarin).</p>
             </div>
             <div class="col-12 col-md-6">
                 <nav aria-label="breadcrumb" class="breadcrumb-header float-start float-lg-end">
@@ -200,86 +224,68 @@ include '../../includes/header.php';
 
     <section class="section">
         <div class="row mb-3">
+            <?php
+                $growth = $summaryStats['content_growth'];
+                $color = getGrowthColorClass($growth);
+                $icon = getGrowthIcon($growth);
+            ?>
             <div class="col-6 col-md-3">
-                <div class="card bg-primary text-white">
+                <div class="card">
                     <div class="card-body text-center">
-                        <h6 class="text-white mb-2"><i class="bi bi-file-earmark-post"></i> Post Terbit</h6>
-                        <h2 class="mb-0"><?= formatNumber($summaryStats['posts_today']) ?></h2>
+                        <h6 class="text-muted mb-2"><i class="bi bi-file-earmark-post"></i> Content Growth</h6>
+                        <h2 class="mb-0 <?= $color ?>">
+                            <i class="bi <?= $icon ?> fs-5 me-1"></i><?= ($growth >= 0 ? '+' : '') . $growth ?>%
+                        </h2>
                     </div>
                 </div>
             </div>
+            
+            <?php
+                $growth = $summaryStats['traffic_growth'];
+                $color = getGrowthColorClass($growth);
+                $icon = getGrowthIcon($growth);
+            ?>
             <div class="col-6 col-md-3">
-                <div class="card bg-success text-white">
+                <div class="card">
                     <div class="card-body text-center">
-                        <h6 class="text-white mb-2"><i class="bi bi-eye"></i> Total Views</h6>
-                        <h2 class="mb-0"><?= formatNumber($summaryStats['views_today']) ?></h2>
+                        <h6 class="text-muted mb-2"><i class="bi bi-eye"></i> Traffic Growth</h6>
+                        <h2 class="mb-0 <?= $color ?>">
+                            <i class="bi <?= $icon ?> fs-5 me-1"></i><?= ($growth >= 0 ? '+' : '') . $growth ?>%
+                        </h2>
                     </div>
                 </div>
             </div>
+            
+             <?php
+                $growth = $summaryStats['engagement_growth'];
+                $color = getGrowthColorClass($growth);
+                $icon = getGrowthIcon($growth);
+            ?>
             <div class="col-6 col-md-3">
-                <div class="card bg-info text-white">
+                <div class="card">
                     <div class="card-body text-center">
-                        <h6 class="text-white mb-2"><i class="bi bi-download"></i> Total Download</h6>
-                        <h2 class="mb-0"><?= formatNumber($summaryStats['downloads_today']) ?></h2>
+                        <h6 class="text-muted mb-2"><i class="bi bi-graph-up"></i> Engagement Growth</h6>
+                        <h2 class="mb-0 <?= $color ?>">
+                            <i class="bi <?= $icon ?> fs-5 me-1"></i><?= ($growth >= 0 ? '+' : '') . $growth ?>%
+                        </h2>
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="card bg-warning text-white">
-                    <div class="card-body text-center">
-                        <h6 class="text-white mb-2"><i class="bi bi-envelope"></i> Pesan Masuk</h6>
-                        <h2 class="mb-0"><?= formatNumber($summaryStats['messages_today']) ?></h2>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <div class="card mb-3">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Filter Laporan</h5>
-            </div>
-            <div class="card-body">
-                <form method="GET" action="" class="row g-2 align-items-end">
-                    <div class="col-12 col-md-4">
-                        <label class="form-label">Tanggal Dari</label>
-                        <input type="date" name="date_from" class="form-control" value="<?= htmlspecialchars($dateFrom) ?>">
+            <?php
+                $growth = $summaryStats['user_growth'];
+                $color = getGrowthColorClass($growth);
+                $icon = getGrowthIcon($growth);
+            ?>
+            <div class="col-6 col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted mb-2"><i class="bi bi-person-plus"></i> User Growth</h6>
+                        <h2 class="mb-0 <?= $color ?>">
+                            <i class="bi <?= $icon ?> fs-5 me-1"></i><?= ($growth >= 0 ? '+' : '') . $growth ?>%
+                        </h2>
                     </div>
-                    <div class="col-12 col-md-4">
-                        <label class="form-label">Tanggal Sampai</label>
-                        <input type="date" name="date_to" class="form-control" value="<?= htmlspecialchars($dateTo) ?>">
-                    </div>
-                    <div class="col-12 col-md-2">
-                        <label class="form-label">Tipe Aksi</label>
-                        <select name="action_type" class="form-select">
-                            <option value="">-- Semua --</option>
-                            <?php foreach ($actionTypes as $type): ?>
-                                <option value="<?= $type ?>" <?= $actionType == $type ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($type) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-6 col-md-1">
-                        <label class="form-label">Per Hal</label>
-                        <select name="per_page" class="form-select">
-                            <?php foreach ($perPageOptions as $n): ?>
-                                <option value="<?= $n ?>"<?= $perPage == $n ? ' selected' : '' ?>><?= $n ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-6 col-md-1">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-funnel"></i>
-                        </button>
-                    </div>
-                </form>
-                <?php if ($dateFrom != $today || $dateTo != $today || $actionType): ?>
-                    <div class="mt-2">
-                        <a href="?" class="btn btn-sm btn-secondary">
-                            <i class="bi bi-x-circle"></i> Reset Filter
-                        </a>
-                    </div>
-                <?php endif; ?>
+                </div>
             </div>
         </div>
 
@@ -287,16 +293,11 @@ include '../../includes/header.php';
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start flex-column flex-md-row gap-2">
                     <div class="flex-grow-1">
-                        <h6 class="mb-1">Detail Log Aktivitas</h6>
+                        <h6 class="mb-1">Growth History (14 Hari Terakhir)</h6>
                         <small class="text-muted">Tanggal Generate: <?= date('d F Y, H:i') ?> WIB</small>
-                        <?php if ($dateFrom || $dateTo || $actionType): ?>
-                            <br><span class="badge bg-info mt-1">Filter Aktif</span>
-                        <?php endif; ?>
                     </div>
 
-                    <a href="?export_pdf=1<?= $dateFrom ? '&date_from='.$dateFrom : '' ?><?= $dateTo ? '&date_to='.$dateTo : '' ?><?= $actionType ? '&action_type='.$actionType : '' ?>"
-                       class="btn btn-danger flex-shrink-0"
-                       target="_blank">
+                    <a href="?export_pdf=1" class="btn btn-danger flex-shrink-0" target="_blank">
                         <i class="bi bi-file-pdf"></i> Export PDF
                     </a>
                 </div>
@@ -304,87 +305,57 @@ include '../../includes/header.php';
         </div>
 
         <div class="card">
-            <div class="card-header border-bottom-0">
-                <h5 class="card-title mb-0">
-                    Log Aktivitas
-                    <span class="badge bg-primary"><?= $totalItems ?> Data</span>
-                </h5>
-            </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-striped">
+                    <table class="table table-striped table-hover">
                         <thead>
                             <tr>
-                                <th style="width: 50px;">No</th>
-                                <th>Waktu</th>
-                                <th>User</th>
-                                <th>Aksi</th>
-                                <th>Tipe</th>
-                                <th>Deskripsi</th>
-                                <th>IP</th>
+                                <th>Tanggal</th>
+                                <th>Post Baru</th>
+                                <th>Δ (%)</th>
+                                <th>Total Views</th>
+                                <th>Δ (%)</th>
+                                <th>Engagement</th>
+                                <th>Δ (%)</th>
+                                <th>New Users</th>
+                                <th>Δ (%)</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (empty($mainData)): ?>
+                            <?php if (empty($tableData)): ?>
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">Tidak ada data</td>
+                                    <td colspan="9" class="text-center text-muted py-4">Tidak ada data historis</td>
                                 </tr>
                             <?php else: ?>
-                                <?php 
-                                $no = $offset + 1; 
-                                foreach ($mainData as $row): 
-                                ?>
-                                    <tr>
-                                        <td class="text-center"><?= $no ?></td>
-                                        <td><small><?= formatTanggal($row['created_at'], 'd/m/Y H:i') ?></small></td>
-                                        <td><?= htmlspecialchars($row['user_name'] ?? 'Guest') ?></td>
-                                        <td>
-                                            <span class="badge bg-light-primary"><?= htmlspecialchars($row['action_type']) ?></span>
+                                <?php foreach ($tableData as $row): ?>
+                                    <tr style="font-size: 0.9rem;">
+                                        <td><strong><?= formatTanggal($row['tanggal'], 'd/m/Y') ?></strong></td>
+                                        
+                                        <td class="text-center"><?= formatNumber($row['post_baru']) ?></td>
+                                        <td class="text-center <?= getGrowthColorClass($row['delta_post_persen']) ?>">
+                                            <?= ($row['delta_post_persen'] >= 0 ? '+' : '') . $row['delta_post_persen'] ?>%
                                         </td>
-                                        <td><?= htmlspecialchars($row['model_type'] ?? '-') ?></td>
-                                        <td><?= htmlspecialchars($row['description']) ?></td>
-                                        <td><?= htmlspecialchars($row['ip_address']) ?></td>
+                                        
+                                        <td class="text-center"><?= formatNumber($row['total_views']) ?></td>
+                                        <td class="text-center <?= getGrowthColorClass($row['delta_views_persen']) ?>">
+                                            <?= ($row['delta_views_persen'] >= 0 ? '+' : '') . $row['delta_views_persen'] ?>%
+                                        </td>
+                                        
+                                        <td class="text-center"><?= formatNumber($row['total_engagement']) ?></td>
+                                        <td class="text-center <?= getGrowthColorClass($row['delta_engagement_persen']) ?>">
+                                            <?= ($row['delta_engagement_persen'] >= 0 ? '+' : '') . $row['delta_engagement_persen'] ?>%
+                                        </td>
+
+                                        <td class="text-center"><?= formatNumber($row['new_users']) ?></td>
+                                        <td class="text-center <?= getGrowthColorClass($row['delta_users_persen']) ?>">
+                                            <?= ($row['delta_users_persen'] >= 0 ? '+' : '') . $row['delta_users_persen'] ?>%
+                                        </td>
                                     </tr>
-                                    <?php $no++; ?>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
-
-                <?php if ($totalItems > 0): ?>
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
-                        <div class="flex-grow-1">
-                            <small class="text-muted">
-                                Halaman <?= $page ?> dari <?= $totalPages ?> · Menampilkan <?= count($mainData) ?> dari <?= $totalItems ?> data
-                            </small>
-                        </div>
-                        <nav aria-label="Page navigation" class="flex-shrink-0">
-                            <ul class="pagination mb-0">
-                                <li class="page-item<?= $page <= 1 ? ' disabled' : '' ?>">
-                                    <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>">
-                                        <i class="bi bi-chevron-left"></i>
-                                    </a>
-                                </li>
-                                <?php
-                                $from = max(1, $page - 2);
-                                $to = min($totalPages, $page + 2);
-                                for ($i = $from; $i <= $to; $i++): ?>
-                                    <li class="page-item<?= $i == $page ? ' active' : '' ?>">
-                                        <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>">
-                                            <?= $i ?>
-                                        </a>
-                                    </li>
-                                <?php endfor; ?>
-                                <li class="page-item<?= $page >= $totalPages ? ' disabled' : '' ?>">
-                                    <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>">
-                                        <i class="bi bi-chevron-right"></i>
-                                    </a>
-                                </li>
-                            </ul>
-                        </nav>
-                    </div>
-                <?php endif; ?>
             </div>
         </div>
     </section>

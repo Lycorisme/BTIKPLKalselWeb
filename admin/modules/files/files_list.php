@@ -144,7 +144,7 @@ include '../../includes/header.php';
                                 <tr>
                                     <th width="5%">No</th>
                                     <th width="30%">Nama File</th>
-                                    <th width="12%">Ukuran/Tipe</th>
+                                    <th width="15%">Ukuran/Tipe</th>
                                     <th width="28%">Deskripsi</th>
                                     <th width="8%" class="text-center">Download</th>
                                     <th width="8%" class="text-center">Status</th>

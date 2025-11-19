@@ -1,7 +1,11 @@
 <?php
 /**
- * Search Results Page
+ * Search Results Page (Fixed Theme Consistency)
  * Full-text search dengan filter & sorting
+ * * PERBAIKAN:
+ * - Wrapper background & text color dinamis
+ * - Tombol dan elemen aksen mengikuti var(--color-primary)
+ * - Breadcrumb dan Pagination konsisten
  */
 
 require_once 'config.php';
@@ -124,259 +128,257 @@ $pageDescription = "Hasil pencarian untuk: {$query}";
 include 'templates/header.php';
 ?>
 
-<!-- Breadcrumb -->
-<div class="bg-gray-100 py-4">
-    <div class="container mx-auto px-4">
-        <nav class="flex items-center gap-2 text-sm">
-            <a href="<?= BASE_URL ?>" class="text-blue-600 hover:text-blue-700">
-                <i class="fas fa-home"></i> Beranda
-            </a>
-            <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-            <span class="text-gray-600">Pencarian</span>
-            <?php if (!empty($query)): ?>
-            <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-            <span class="text-gray-600">"<?= htmlspecialchars($query) ?>"</span>
-            <?php endif; ?>
-        </nav>
-    </div>
-</div>
+<div style="background-color: var(--color-background); color: var(--color-text); min-height: 100vh;">
 
-<!-- Search Section -->
-<section class="py-12 bg-gray-50">
-    <div class="container mx-auto px-4">
-        
-        <!-- Search Box -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <form action="<?= BASE_URL ?>search.php" method="GET" class="space-y-4">
-                <div class="flex flex-col md:flex-row gap-4">
-                    <!-- Search Input -->
-                    <div class="flex-1">
-                        <div class="relative">
-                            <input type="text" 
-                                   name="q" 
-                                   value="<?= htmlspecialchars($query) ?>" 
-                                   placeholder="Cari artikel, berita, informasi..." 
-                                   class="w-full px-4 py-3 pl-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                   required>
-                            <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+    <div class="py-4 border-b border-gray-200/50">
+        <div class="container mx-auto px-4">
+            <nav class="flex items-center gap-2 text-sm">
+                <a href="<?= BASE_URL ?>" class="text-blue-600 hover:text-blue-800 transition">
+                    <i class="fas fa-home"></i> Beranda
+                </a>
+                <i class="fas fa-chevron-right opacity-50 text-xs"></i>
+                <span class="opacity-75 font-medium">Pencarian</span>
+                <?php if (!empty($query)): ?>
+                <i class="fas fa-chevron-right opacity-50 text-xs"></i>
+                <span class="font-semibold">"<?= htmlspecialchars($query) ?>"</span>
+                <?php endif; ?>
+            </nav>
+        </div>
+    </div>
+
+    <section class="py-12">
+        <div class="container mx-auto px-4">
+            
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-100" data-aos="fade-up">
+                <form action="<?= BASE_URL ?>search.php" method="GET" class="space-y-4">
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <div class="flex-1">
+                            <div class="relative">
+                                <input type="text" 
+                                       name="q" 
+                                       value="<?= htmlspecialchars($query) ?>" 
+                                       placeholder="Cari artikel, berita, informasi..." 
+                                       class="w-full px-4 py-3 pl-12 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                                       style="focus:ring-color: var(--color-primary);"
+                                       required>
+                                <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 opacity-50"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="md:w-48">
+                            <select name="category" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                                    style="focus:ring-color: var(--color-primary);">
+                                <option value="">Semua Kategori</option>
+                                <?php foreach ($categories as $cat): ?>
+                                <option value="<?= $cat['id'] ?>" <?= $category_filter == $cat['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($cat['name']) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <button type="submit" 
+                                class="px-8 py-3 text-white rounded-lg transition font-medium shadow-md hover:opacity-90"
+                                style="background-color: var(--color-primary);">
+                            <i class="fas fa-search mr-2"></i>Cari
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <?php if (!empty($query)): ?>
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold" style="color: var(--color-text);">
+                        <?php if ($total_results > 0): ?>
+                            Ditemukan <?= number_format($total_results) ?> hasil
+                        <?php else: ?>
+                            Tidak ada hasil
+                        <?php endif; ?>
+                    </h1>
+                    <p class="opacity-75 mt-1">
+                        untuk pencarian: <strong>"<?= htmlspecialchars($query) ?>"</strong>
+                    </p>
+                </div>
+                
+                <?php if ($total_results > 0): ?>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm opacity-75">Urutkan:</span>
+                    <select onchange="window.location.href=this.value" 
+                            class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:border-transparent"
+                            style="color: var(--color-text);">
+                        <option value="?q=<?= urlencode($query) ?>&category=<?= $category_filter ?>&sort=relevance" <?= $sort === 'relevance' ? 'selected' : '' ?>>
+                            Relevansi
+                        </option>
+                        <option value="?q=<?= urlencode($query) ?>&category=<?= $category_filter ?>&sort=date" <?= $sort === 'date' ? 'selected' : '' ?>>
+                            Terbaru
+                        </option>
+                        <option value="?q=<?= urlencode($query) ?>&category=<?= $category_filter ?>&sort=views" <?= $sort === 'views' ? 'selected' : '' ?>>
+                            Terpopuler
+                        </option>
+                        <option value="?q=<?= urlencode($query) ?>&category=<?= $category_filter ?>&sort=title" <?= $sort === 'title' ? 'selected' : '' ?>>
+                            Judul (A-Z)
+                        </option>
+                    </select>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <div class="lg:col-span-2">
+                    <?php if (empty($query)): ?>
+                    
+                    <div class="bg-white rounded-lg shadow-md p-12 text-center border border-gray-100">
+                        <i class="fas fa-search text-6xl mb-4 opacity-20"></i>
+                        <h2 class="text-2xl font-bold mb-2" style="color: var(--color-text);">Cari Artikel</h2>
+                        <p class="opacity-60">Gunakan form di atas untuk mencari artikel, berita, atau informasi</p>
+                    </div>
+                    
+                    <?php elseif (empty($results)): ?>
+                    
+                    <div class="bg-white rounded-lg shadow-md p-12 text-center border border-gray-100">
+                        <i class="fas fa-search-minus text-6xl mb-4 opacity-20"></i>
+                        <h2 class="text-2xl font-bold mb-2" style="color: var(--color-text);">Tidak Ada Hasil</h2>
+                        <p class="mb-4 opacity-75">
+                            Tidak ditemukan hasil untuk "<strong><?= htmlspecialchars($query) ?></strong>"
+                        </p>
+                        <div class="space-y-2 text-sm opacity-60">
+                            <p>Saran:</p>
+                            <ul class="list-disc list-inside inline-block text-left">
+                                <li>Periksa ejaan kata kunci</li>
+                                <li>Gunakan kata kunci yang lebih umum</li>
+                                <li>Coba kata kunci yang berbeda</li>
+                                <li>Kurangi jumlah kata kunci</li>
+                            </ul>
                         </div>
                     </div>
                     
-                    <!-- Category Filter -->
-                    <div class="md:w-48">
-                        <select name="category" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                            <option value="">Semua Kategori</option>
-                            <?php foreach ($categories as $cat): ?>
-                            <option value="<?= $cat['id'] ?>" <?= $category_filter == $cat['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($cat['name']) ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    
-                    <!-- Search Button -->
-                    <button type="submit" class="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium">
-                        <i class="fas fa-search mr-2"></i>Cari
-                    </button>
-                </div>
-            </form>
-        </div>
-        
-        <!-- Results Info & Sorting -->
-        <?php if (!empty($query)): ?>
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">
-                    <?php if ($total_results > 0): ?>
-                        Ditemukan <?= number_format($total_results) ?> hasil
                     <?php else: ?>
-                        Tidak ada hasil
-                    <?php endif; ?>
-                </h1>
-                <p class="text-gray-600 mt-1">
-                    untuk pencarian: <strong>"<?= htmlspecialchars($query) ?>"</strong>
-                </p>
-            </div>
-            
-            <!-- Sort Options -->
-            <?php if ($total_results > 0): ?>
-            <div class="flex items-center gap-2">
-                <span class="text-sm text-gray-600">Urutkan:</span>
-                <select onchange="window.location.href=this.value" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    <option value="?q=<?= urlencode($query) ?>&category=<?= $category_filter ?>&sort=relevance" <?= $sort === 'relevance' ? 'selected' : '' ?>>
-                        Relevansi
-                    </option>
-                    <option value="?q=<?= urlencode($query) ?>&category=<?= $category_filter ?>&sort=date" <?= $sort === 'date' ? 'selected' : '' ?>>
-                        Terbaru
-                    </option>
-                    <option value="?q=<?= urlencode($query) ?>&category=<?= $category_filter ?>&sort=views" <?= $sort === 'views' ? 'selected' : '' ?>>
-                        Terpopuler
-                    </option>
-                    <option value="?q=<?= urlencode($query) ?>&category=<?= $category_filter ?>&sort=title" <?= $sort === 'title' ? 'selected' : '' ?>>
-                        Judul (A-Z)
-                    </option>
-                </select>
-            </div>
-            <?php endif; ?>
-        </div>
-        <?php endif; ?>
-        
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            <!-- Results List (2/3 width) -->
-            <div class="lg:col-span-2">
-                <?php if (empty($query)): ?>
-                
-                <!-- Empty State: No Search Yet -->
-                <div class="bg-white rounded-lg shadow-md p-12 text-center">
-                    <i class="fas fa-search text-6xl text-gray-300 mb-4"></i>
-                    <h2 class="text-2xl font-bold text-gray-900 mb-2">Cari Artikel</h2>
-                    <p class="text-gray-600">Gunakan form di atas untuk mencari artikel, berita, atau informasi</p>
-                </div>
-                
-                <?php elseif (empty($results)): ?>
-                
-                <!-- Empty State: No Results -->
-                <div class="bg-white rounded-lg shadow-md p-12 text-center">
-                    <i class="fas fa-search-minus text-6xl text-gray-300 mb-4"></i>
-                    <h2 class="text-2xl font-bold text-gray-900 mb-2">Tidak Ada Hasil</h2>
-                    <p class="text-gray-600 mb-4">
-                        Tidak ditemukan hasil untuk "<strong><?= htmlspecialchars($query) ?></strong>"
-                    </p>
-                    <div class="space-y-2 text-sm text-gray-600">
-                        <p>Saran:</p>
-                        <ul class="list-disc list-inside">
-                            <li>Periksa ejaan kata kunci</li>
-                            <li>Gunakan kata kunci yang lebih umum</li>
-                            <li>Coba kata kunci yang berbeda</li>
-                            <li>Kurangi jumlah kata kunci</li>
-                        </ul>
-                    </div>
-                </div>
-                
-                <?php else: ?>
-                
-                <!-- Results Grid -->
-                <div class="space-y-6">
-                    <?php foreach ($results as $post): ?>
-                    <article class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow">
-                        <div class="md:flex">
-                            <!-- Thumbnail -->
-                            <div class="md:w-64 md:flex-shrink-0">
-                                <a href="<?= BASE_URL ?>post.php?slug=<?= $post['slug'] ?>" class="block h-48 md:h-full overflow-hidden">
-                                    <img src="<?= get_featured_image($post['featured_image']) ?>" 
-                                         alt="<?= htmlspecialchars($post['title']) ?>"
-                                         class="w-full h-full object-cover transform hover:scale-110 transition-transform duration-300">
-                                </a>
-                            </div>
-                            
-                            <!-- Content -->
-                            <div class="p-6 flex-1">
-                                <!-- Category Badge -->
-                                <?php if (!empty($post['category_name'])): ?>
-                                <a href="<?= BASE_URL ?>category.php?slug=<?= $post['category_slug'] ?>" 
-                                   class="inline-block bg-blue-100 text-blue-600 text-xs font-medium px-2 py-1 rounded mb-2">
-                                    <?= htmlspecialchars($post['category_name']) ?>
-                                </a>
-                                <?php endif; ?>
+                    
+                    <div class="space-y-6">
+                        <?php foreach ($results as $post): ?>
+                        <article class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow border border-gray-100">
+                            <div class="md:flex">
+                                <div class="md:w-64 md:flex-shrink-0">
+                                    <a href="<?= BASE_URL ?>post.php?slug=<?= $post['slug'] ?>" class="block h-48 md:h-full overflow-hidden relative group">
+                                        <img src="<?= get_featured_image($post['featured_image']) ?>" 
+                                             alt="<?= htmlspecialchars($post['title']) ?>"
+                                             class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-300">
+                                        <div class="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
+                                    </a>
+                                </div>
                                 
-                                <!-- Title with highlight -->
-                                <h2 class="text-xl font-bold text-gray-900 mb-2 hover:text-blue-600 transition">
-                                    <a href="<?= BASE_URL ?>post.php?slug=<?= $post['slug'] ?>">
+                                <div class="p-6 flex-1">
+                                    <?php if (!empty($post['category_name'])): ?>
+                                    <a href="<?= BASE_URL ?>category.php?slug=<?= $post['category_slug'] ?>" 
+                                       class="inline-block text-xs font-medium px-2 py-1 rounded mb-2 hover:opacity-80 transition"
+                                       style="background-color: rgba(var(--color-primary-rgb), 0.1); color: var(--color-primary);">
+                                        <?= htmlspecialchars($post['category_name']) ?>
+                                    </a>
+                                    <?php endif; ?>
+                                    
+                                    <h2 class="text-xl font-bold mb-2 transition">
+                                        <a href="<?= BASE_URL ?>post.php?slug=<?= $post['slug'] ?>" 
+                                           class="hover:opacity-80"
+                                           style="color: var(--color-text);">
+                                            <?php
+                                            // Highlight search term in title
+                                            $title = htmlspecialchars($post['title']);
+                                            if (!empty($query)) {
+                                                $title = preg_replace(
+                                                    '/(' . preg_quote($query, '/') . ')/i',
+                                                    '<mark class="bg-yellow-200 px-1 rounded">$1</mark>',
+                                                    $title
+                                                );
+                                            }
+                                            echo $title;
+                                            ?>
+                                        </a>
+                                    </h2>
+                                    
+                                    <p class="mb-4 line-clamp-2 opacity-75">
                                         <?php
-                                        // Highlight search term in title
-                                        $title = htmlspecialchars($post['title']);
+                                        $excerpt = htmlspecialchars(truncateText($post['excerpt'] ?? strip_tags($post['content']), 150));
                                         if (!empty($query)) {
-                                            $title = preg_replace(
+                                            $excerpt = preg_replace(
                                                 '/(' . preg_quote($query, '/') . ')/i',
-                                                '<mark class="bg-yellow-200 px-1">$1</mark>',
-                                                $title
+                                                '<mark class="bg-yellow-200 px-1 rounded">$1</mark>',
+                                                $excerpt
                                             );
                                         }
-                                        echo $title;
+                                        echo $excerpt;
                                         ?>
-                                    </a>
-                                </h2>
-                                
-                                <!-- Excerpt -->
-                                <p class="text-gray-700 mb-4 line-clamp-2">
-                                    <?php
-                                    $excerpt = htmlspecialchars(truncateText($post['excerpt'] ?? strip_tags($post['content']), 150));
-                                    if (!empty($query)) {
-                                        $excerpt = preg_replace(
-                                            '/(' . preg_quote($query, '/') . ')/i',
-                                            '<mark class="bg-yellow-200 px-1">$1</mark>',
-                                            $excerpt
-                                        );
-                                    }
-                                    echo $excerpt;
-                                    ?>
-                                </p>
-                                
-                                <!-- Meta Info -->
-                                <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                                    <span>
-                                        <i class="far fa-user mr-1"></i>
-                                        <?= htmlspecialchars($post['author_name'] ?? 'Admin') ?>
-                                    </span>
-                                    <span>
-                                        <i class="far fa-calendar mr-1"></i>
-                                        <?= formatTanggal($post['created_at'], 'd M Y') ?>
-                                    </span>
-                                    <span>
-                                        <i class="far fa-eye mr-1"></i>
-                                        <?= number_format($post['view_count']) ?>
-                                    </span>
+                                    </p>
+                                    
+                                    <div class="flex flex-wrap items-center gap-4 text-sm opacity-60">
+                                        <span class="flex items-center">
+                                            <i class="far fa-user mr-1"></i>
+                                            <?= htmlspecialchars($post['author_name'] ?? 'Admin') ?>
+                                        </span>
+                                        <span class="flex items-center">
+                                            <i class="far fa-calendar mr-1"></i>
+                                            <?= formatTanggal($post['created_at'], 'd M Y') ?>
+                                        </span>
+                                        <span class="flex items-center">
+                                            <i class="far fa-eye mr-1"></i>
+                                            <?= number_format($post['view_count']) ?>
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </article>
-                    <?php endforeach; ?>
+                        </article>
+                        <?php endforeach; ?>
+                    </div>
+                    
+                    <?php if ($total_pages > 1): ?>
+                    <div class="mt-8 flex justify-center">
+                        <nav class="flex gap-2">
+                            <?php if ($page > 1): ?>
+                            <a href="?q=<?= urlencode($query) ?>&category=<?= $category_filter ?>&sort=<?= $sort ?>&page=<?= $page - 1 ?>" 
+                               class="px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition shadow-sm"
+                               style="color: var(--color-text);">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                            <?php endif; ?>
+                            
+                            <?php
+                            $start_page = max(1, $page - 2);
+                            $end_page = min($total_pages, $page + 2);
+                            
+                            for ($i = $start_page; $i <= $end_page; $i++):
+                                $isActive = ($i === $page);
+                            ?>
+                            <a href="?q=<?= urlencode($query) ?>&category=<?= $category_filter ?>&sort=<?= $sort ?>&page=<?= $i ?>" 
+                               class="px-4 py-2 border rounded-lg transition <?= $active ? 'shadow-md' : '' ?>"
+                               style="<?= $isActive ? 'background-color: var(--color-primary); color: white; border-color: var(--color-primary);' : 'background-color: white; color: var(--color-text); border-color: #e5e7eb;' ?>">
+                                <?= $i ?>
+                            </a>
+                            <?php endfor; ?>
+                            
+                            <?php if ($page < $total_pages): ?>
+                            <a href="?q=<?= urlencode($query) ?>&category=<?= $category_filter ?>&sort=<?= $sort ?>&page=<?= $page + 1 ?>" 
+                               class="px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition shadow-sm"
+                               style="color: var(--color-text);">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                            <?php endif; ?>
+                        </nav>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php endif; ?>
                 </div>
                 
-                <!-- Pagination -->
-                <?php if ($total_pages > 1): ?>
-                <div class="mt-8 flex justify-center">
-                    <nav class="flex gap-2">
-                        <?php if ($page > 1): ?>
-                        <a href="?q=<?= urlencode($query) ?>&category=<?= $category_filter ?>&sort=<?= $sort ?>&page=<?= $page - 1 ?>" 
-                           class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-                            <i class="fas fa-chevron-left"></i>
-                        </a>
-                        <?php endif; ?>
-                        
-                        <?php
-                        $start_page = max(1, $page - 2);
-                        $end_page = min($total_pages, $page + 2);
-                        
-                        for ($i = $start_page; $i <= $end_page; $i++):
-                        ?>
-                        <a href="?q=<?= urlencode($query) ?>&category=<?= $category_filter ?>&sort=<?= $sort ?>&page=<?= $i ?>" 
-                           class="px-4 py-2 <?= $i === $page ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 hover:bg-gray-50' ?> rounded-lg transition">
-                            <?= $i ?>
-                        </a>
-                        <?php endfor; ?>
-                        
-                        <?php if ($page < $total_pages): ?>
-                        <a href="?q=<?= urlencode($query) ?>&category=<?= $category_filter ?>&sort=<?= $sort ?>&page=<?= $page + 1 ?>" 
-                           class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-                            <i class="fas fa-chevron-right"></i>
-                        </a>
-                        <?php endif; ?>
-                    </nav>
+                <div class="lg:col-span-1">
+                    <?php include 'templates/sidebar.php'; ?>
                 </div>
-                <?php endif; ?>
                 
-                <?php endif; ?>
             </div>
-            
-            <!-- Sidebar (1/3 width) -->
-            <div class="lg:col-span-1">
-                <?php include 'templates/sidebar.php'; ?>
-            </div>
-            
         </div>
-    </div>
-</section>
+    </section>
+
+</div>
 
 <?php include 'templates/footer.php'; ?>

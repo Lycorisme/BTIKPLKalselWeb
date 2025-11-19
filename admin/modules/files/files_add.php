@@ -147,21 +147,6 @@ include '../../includes/header.php';
                                 <li class="mb-2"><i class="bi bi-file-earmark-zip text-secondary me-2"></i> Arsip (.zip, .rar, .7z)</li>
                             </ul>
                         </div>
-                        
-                        <div class="mb-3">
-                            <h6 class="text-primary">Tips Upload</h6>
-                            <ul class="list-unstyled">
-                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> Gunakan nama file yang deskriptif</li>
-                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> Pastikan file tidak mengandung virus</li>
-                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> Periksa ukuran file sebelum upload</li>
-                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> Isi deskripsi dengan jelas</li>
-                            </ul>
-                        </div>
-                        
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle me-2"></i>
-                            <small>File yang diupload akan tersimpan di server dan dapat diunduh oleh pengguna jika status diatur sebagai "Aktif"</small>
-                        </div>
                     </div>
                 </div>
                 
