@@ -9,6 +9,8 @@
  */
 
 require_once 'config.php';
+// [TRACKING] Load Tracker Class
+require_once '../core/PageViewTracker.php';
 
 // Dynamic settings
 $siteName = getSetting('site_name', 'BTIKP Kalimantan Selatan');
@@ -62,6 +64,16 @@ if (!$post) {
     exit;
 }
 
+// [TRACKING] Implement Page View Tracker
+// Note: Trigger database akan otomatis mengupdate view_count di tabel posts
+if ($post) {
+    $tracker = new PageViewTracker();
+    $tracker->track('post', $post['id']);
+    
+    // Optional: Debug stats (bisa dihapus di production)
+    // $viewStats = $tracker->getStats('post', $post['id'], 30);
+}
+
 // Format content dengan word-break
 if (!empty($post['content'])) {
     if (strip_tags($post['content']) === $post['content']) {
@@ -71,12 +83,14 @@ if (!empty($post['content'])) {
     }
 }
 
-// Increment view count
+// [OLD LOGIC] Disabled to prevent double counting because SQL Trigger handles it now
+/*
 try {
     increment_post_views($post['id']);
 } catch (Exception $e) {
     error_log("Increment Views Error: " . $e->getMessage());
 }
+*/
 
 // Get post tags
 try {

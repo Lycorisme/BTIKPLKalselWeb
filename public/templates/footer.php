@@ -24,14 +24,10 @@ $active_socials = array_filter($social_media, function($social) {
 });
 ?>
     </div>
-    <!-- End Main Content -->
-    
-    <!-- Footer -->
     <footer class="bg-gray-900 text-white py-12">
         <div class="container mx-auto px-4">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                 
-                <!-- About -->
                 <div>
                     <h3 class="text-xl font-bold mb-4"><?= getSetting('site_name', 'BTIKP Kalsel') ?></h3>
                     <p class="text-gray-400 mb-4"><?= $footer_about ?></p>
@@ -51,7 +47,6 @@ $active_socials = array_filter($social_media, function($social) {
                     <?php endif; ?>
                 </div>
                 
-                <!-- Quick Links -->
                 <div>
                     <h3 class="text-xl font-bold mb-4">Menu Cepat</h3>
                     <ul class="space-y-2">
@@ -64,17 +59,17 @@ $active_socials = array_filter($social_media, function($social) {
                     </ul>
                 </div>
                 
-                <!-- Recent Posts -->
                 <div>
                     <h3 class="text-xl font-bold mb-4">Berita Terbaru</h3>
                     <ul class="space-y-3">
                         <?php
+                        // Memanggil fungsi untuk mendapatkan 3 berita terbaru
                         $recent_posts = get_recent_posts(3);
                         foreach ($recent_posts as $post):
                         ?>
                         <li>
-                            <a href="<?= BASE_URL ?>post.php?slug=<?= $post['slug'] ?>" class="text-gray-400 hover:text-white transition text-sm">
-                                <?= truncateText($post['title'], 50) ?>
+                            <a href="<?= BASE_URL ?>post.php?slug=<?= $post['slug'] ?>" class="text-gray-400 hover:text-white transition text-sm line-clamp-2">
+                                <?= truncateText($post['title'], 100) ?>
                             </a>
                             <div class="text-xs text-gray-500 mt-1">
                                 <i class="far fa-calendar mr-1"></i><?= formatTanggal($post['created_at'], 'd M Y') ?>
@@ -84,7 +79,6 @@ $active_socials = array_filter($social_media, function($social) {
                     </ul>
                 </div>
                 
-                <!-- Contact Info -->
                 <div>
                     <h3 class="text-xl font-bold mb-4">Kontak Kami</h3>
                     <ul class="space-y-3 text-gray-400">
@@ -105,14 +99,12 @@ $active_socials = array_filter($social_media, function($social) {
                 
             </div>
             
-            <!-- Copyright -->
             <div class="mt-8 pt-8 border-t border-gray-800 text-center text-gray-400">
                 <p>&copy; <?= date('Y') ?> <?= getSetting('site_name', 'BTIKP Kalimantan Selatan') ?>. All rights reserved.</p>
             </div>
         </div>
     </footer>
     
-    <!-- Search Modal -->
     <div id="searchModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-lg max-w-2xl w-full p-6">
             <div class="flex justify-between items-center mb-4">
@@ -132,14 +124,11 @@ $active_socials = array_filter($social_media, function($social) {
         </div>
     </div>
     
-    <!-- JavaScript Libraries via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     
-    <!-- Custom JavaScript (Centralized) -->
     <script src="<?= BASE_URL ?>assets/js/custom.js?v=1.0"></script>
     
-    <!-- Apply Theme Colors from Settings -->
     <script>
         // Apply theme colors dynamically
         if (window.BTIKPKalsel && window.BTIKPKalsel.applyThemeColors) {

@@ -9,6 +9,8 @@
  */
 
 require_once 'config.php';
+// [TRACKING] Load Tracker Class (Disiapkan jika ingin tracking halaman ini sebagai 'page' umum nanti)
+require_once '../core/PageViewTracker.php';
 
 // 1. Ambil Data Layanan
 try {
@@ -284,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             backdrop.classList.remove('opacity-0');
             panel.classList.remove('scale-95', 'opacity-0');
-            panel.classList.add('scale-100', 'opacity-100');
+            panel.classList.remove('scale-100', 'opacity-100');
         }, 10);
         document.body.style.overflow = 'hidden';
     }
@@ -359,4 +361,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<?php include 'templates/footer.php'; ?>    
+<?php include 'templates/footer.php'; ?>

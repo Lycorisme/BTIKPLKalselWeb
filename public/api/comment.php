@@ -1,126 +1,169 @@
 <?php
 /**
- * Comment API - Auto-Approve Version
+ * Comment API Endpoint
+ * With Rate Limiting Protection
  */
+
+session_start();
+
+require_once '../config.php';
+require_once '../../core/Database.php';
+require_once '../../core/RateLimiter.php';
 
 header('Content-Type: application/json');
 
-require_once __DIR__ . '/../config.php';
-
 // Only accept POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Invalid request method'
+    ]);
     exit;
 }
 
-// Get POST data with correct field names
-$post_id = $_POST['post_id'] ?? 0;
-$name = trim($_POST['author_name'] ?? '');
-$email = trim($_POST['author_email'] ?? '');
+// Get POST data
+$postId = (int)($_POST['post_id'] ?? 0);
+$authorName = trim($_POST['author_name'] ?? '');
+$authorEmail = trim($_POST['author_email'] ?? '');
 $content = trim($_POST['content'] ?? '');
-$parent_id = $_POST['parent_id'] ?? null;
+
+// ===== RATE LIMITING - START =====
+$rateLimiter = new RateLimiter();
+$ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+
+// Use email as identifier if provided, otherwise IP
+$identifier = !empty($authorEmail) ? $authorEmail : $ipAddress;
+
+// Check rate limit: max 10 comments per 15 minutes
+$rateCheck = $rateLimiter->check($identifier, 'comment', 10, 15);
+
+if (!$rateCheck['allowed']) {
+    echo json_encode([
+        'success' => false,
+        'message' => $rateCheck['message']
+    ]);
+    exit;
+}
+// ===== RATE LIMITING - END =====
 
 // Validation
 $errors = [];
 
-if (empty($post_id) || !is_numeric($post_id)) {
-    $errors[] = 'Invalid post ID';
+if (empty($postId)) {
+    $errors[] = 'Post ID tidak valid';
 }
 
-if (empty($name) || strlen($name) < 2) {
-    $errors[] = 'Nama harus diisi minimal 2 karakter';
+if (empty($authorName)) {
+    $errors[] = 'Nama harus diisi';
+} elseif (strlen($authorName) < 2) {
+    $errors[] = 'Nama minimal 2 karakter';
+} elseif (strlen($authorName) > 100) {
+    $errors[] = 'Nama maksimal 100 karakter';
 }
 
-if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    $errors[] = 'Email tidak valid';
+if (empty($authorEmail)) {
+    $errors[] = 'Email harus diisi';
+} elseif (!filter_var($authorEmail, FILTER_VALIDATE_EMAIL)) {
+    $errors[] = 'Format email tidak valid';
 }
 
-if (empty($content) || strlen($content) < 10) {
-    $errors[] = 'Komentar harus diisi minimal 10 karakter';
+if (empty($content)) {
+    $errors[] = 'Komentar harus diisi';
+} elseif (strlen($content) < 10) {
+    $errors[] = 'Komentar minimal 10 karakter';
+} elseif (strlen($content) > 1000) {
+    $errors[] = 'Komentar maksimal 1000 karakter';
 }
 
 // Return validation errors
 if (!empty($errors)) {
-    http_response_code(400);
+    // Don't record rate limit for validation errors
     echo json_encode([
-        'success' => false, 
+        'success' => false,
         'message' => implode(', ', $errors)
     ]);
     exit;
 }
 
-// Sanitize input
-$name = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
-$email = htmlspecialchars($email, ENT_QUOTES, 'UTF-8');
-$content = htmlspecialchars($content, ENT_QUOTES, 'UTF-8');
-
-// Get user info
-$ip_address = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-$user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
-
+// Check if post exists
 try {
-    // Check if post exists
-    $stmt = $db->prepare("SELECT id FROM posts WHERE id = ? AND status = 'published' AND deleted_at IS NULL");
-    $stmt->execute([$post_id]);
+    $db = Database::getInstance()->getConnection();
     
-    if (!$stmt->fetch()) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'Post tidak ditemukan']);
-        exit;
-    }
+    $stmt = $db->prepare("SELECT id FROM posts WHERE id = ? AND status = 'published' AND deleted_at IS NULL LIMIT 1");
+    $stmt->execute([$postId]);
+    $post = $stmt->fetch();
     
-    // Rate limiting: Check if user commented recently (within 1 minute)
-    $stmt = $db->prepare("
-        SELECT COUNT(*) as count 
-        FROM comments 
-        WHERE ip_address = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 MINUTE)
-    ");
-    $stmt->execute([$ip_address]);
-    $recent_count = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
-    
-    if ($recent_count > 0) {
-        http_response_code(429);
+    if (!$post) {
         echo json_encode([
-            'success' => false, 
-            'message' => 'Mohon tunggu 1 menit sebelum mengirim komentar lagi'
+            'success' => false,
+            'message' => 'Post tidak ditemukan'
         ]);
         exit;
     }
     
-    // ✅ FIX: Insert comment dengan status 'approved' (auto-approve)
+    // Insert comment
     $stmt = $db->prepare("
-        INSERT INTO comments 
-        (commentable_type, commentable_id, parent_id, name, email, content, ip_address, user_agent, status, created_at)
-        VALUES ('post', ?, ?, ?, ?, ?, ?, ?, 'approved', NOW())
+        INSERT INTO comments (
+            commentable_type,
+            commentable_id,
+            name,
+            email,
+            content,
+            status,
+            ip_address,
+            user_agent,
+            created_at
+        ) VALUES (
+            'post',
+            ?,
+            ?,
+            ?,
+            ?,
+            'pending',
+            ?,
+            ?,
+            NOW()
+        )
     ");
     
-    $stmt->execute([
-        $post_id,
-        $parent_id,
-        $name,
-        $email,
+    $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    
+    $result = $stmt->execute([
+        $postId,
+        $authorName,
+        $authorEmail,
         $content,
-        $ip_address,
-        $user_agent
+        $ipAddress,
+        $userAgent
     ]);
     
-    // Get inserted comment ID
-    $comment_id = $db->lastInsertId();
-    
-    // Success response
-    echo json_encode([
-        'success' => true,
-        'message' => 'Komentar berhasil ditambahkan!',
-        'comment_id' => $comment_id,
-        'reload' => true // Signal to reload page
-    ]);
+    if ($result) {
+        // Record successful comment submission
+        $rateLimiter->record($identifier, 'comment', 15);
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Komentar berhasil dikirim dan menunggu persetujuan admin.',
+            'reload' => false
+        ]);
+    } else {
+        // Also record failed attempts to prevent spam retry
+        $rateLimiter->record($identifier, 'comment', 15);
+        
+        echo json_encode([
+            'success' => false,
+            'message' => 'Gagal menyimpan komentar. Silakan coba lagi.'
+        ]);
+    }
     
 } catch (PDOException $e) {
-    error_log('Comment API Error: ' . $e->getMessage());
-    http_response_code(500);
+    error_log("Comment API Error: " . $e->getMessage());
+    
+    // Record error attempts
+    $rateLimiter->record($identifier, 'comment', 15);
+    
     echo json_encode([
-        'success' => false, 
-        'message' => 'Terjadi kesalahan server. Silakan coba lagi.'
+        'success' => false,
+        'message' => 'Terjadi kesalahan sistem. Silakan coba lagi nanti.'
     ]);
 }

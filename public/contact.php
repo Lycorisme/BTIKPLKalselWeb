@@ -6,6 +6,9 @@
  */
 
 require_once 'config.php';
+// Tambahkan RateLimiter
+require_once '../core/RateLimiter.php';
+
 
 // Dynamic settings
 $siteName = getSetting('site_name', 'BTIKP Kalimantan Selatan');
@@ -400,7 +403,15 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(res => {
             if (!res.ok) {
-                throw new Error('Network response was not ok');
+                // Try to get JSON error info if available
+                return res.text().then(text => {
+                    try {
+                        const data = JSON.parse(text);
+                        throw new Error(data.message || 'Pesan terlalu banyak, coba lagi besok');
+                    } catch (e) {
+                        throw new Error('Pesan terlalu banyak, coba lagi besok');
+                    }
+                });
             }
             return res.json();
         })

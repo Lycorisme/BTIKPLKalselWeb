@@ -5,6 +5,7 @@ require_once '../config/config.php';
 require_once '../core/Database.php';
 require_once '../core/Helper.php';
 require_once '../core/Validator.php';
+require_once '../core/RateLimiter.php';
 
 // Redirect if already logged in
 if (isLoggedIn()) {
@@ -27,15 +28,9 @@ $bgColor = getSetting('login_background_color', '#667eea');
 // Load overlay text for background
 $bgOverlayText = trim(getSetting('login_background_overlay_text', ''));
 
-// ==================================================================
-// == [PERUBAHAN DIMULAI DI SINI] ==
 // Logika untuk memuat file Notifikasi/Alert dinamis
-// ==================================================================
-
-// 1. Dapatkan tema yang sedang aktif dari database
 $currentTheme = getSetting('notification_alert_theme', 'alecto-final-blow');
 
-// 2. Tentukan nama file CSS dan JS berdasarkan tema yang aktif
 switch ($currentTheme) {
     case 'an-eye-for-an-eye':
         $notificationCssFile = 'notifications_an_eye_for_an_eye.css';
@@ -55,19 +50,15 @@ switch ($currentTheme) {
         break;
     case 'alecto-final-blow':
     default:
-        $notificationCssFile = 'notifications.css'; // File default (Alecto)
-        $notificationJsFile = 'notifications.js';  // File default (Alecto)
+        $notificationCssFile = 'notifications.css';
+        $notificationJsFile = 'notifications.js';
         break;
 }
-// ==================================================================
-// == [PERUBAHAN SELESAI] ==
-// ==================================================================
-
 
 $validator = null;
 $alertJS = "";
 
-// Initialize remembered email/password from cookies if exists
+// Initialize remembered email/password from cookies
 $rememberedEmail = $_COOKIE['remember_email'] ?? '';
 $rememberedPassword = $_COOKIE['remember_password'] ?? '';
 
@@ -77,62 +68,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     $remember = isset($_POST['remember']);
     
+    // Initialize validator
     $validator = new Validator($_POST);
-    $validator->required('email', 'Email');
-    $validator->required('password', 'Password');
-    $validator->email('email', 'Email');
     
-    if ($validator->passes()) {
-        try {
-            $db = Database::getInstance()->getConnection();
-            
-            // Check user must be is_active = 1 to login
-            $stmt = $db->prepare("SELECT * FROM users WHERE email = ? AND is_active = 1 AND deleted_at IS NULL LIMIT 1");
-            $stmt->execute([$email]);
-            $user = $stmt->fetch();
-            
-            if (!$user) {
-                // User not found or not active
-                $alertJS .= "notify.error('Email tidak ditemukan atau akun belum aktif.');";
-            } elseif (password_verify($password, $user['password'])) {
-                // Set session
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['user_name'] = $user['name'];
-                $_SESSION['user_email'] = $user['email'];
-                $_SESSION['user_role'] = $user['role'];
-                $_SESSION['user_photo'] = $user['photo'];
-
-                // Update last login
-                $stmt = $db->prepare("UPDATE users SET last_login_at = NOW() WHERE id = ?");
-                $stmt->execute([$user['id']]);
-
-                // Log activity
-                logActivity('LOGIN', 'User login ke sistem', 'users', $user['id']);
-                
-                // Set cookies for remember me feature
-                if ($remember) {
-                    setcookie('remember_email', $email, time() + (86400 * 30), "/");  // 30 days
-                    setcookie('remember_password', $password, time() + (86400 * 30), "/"); // 30 days (consider security)
-                } else {
-                    setcookie('remember_email', '', time() - 3600, "/");
-                    setcookie('remember_password', '', time() - 3600, "/");
-                }
-
-                $alertJS .= "notify.success('Selamat datang, " . addslashes($user['name']) . "!');";
-                $alertJS .= "setTimeout(() => { window.location.href = '" . ADMIN_URL . "'; }, 1500);";
-                
-            } else {
-                $validator->addError('general', 'Email atau password salah');
-            }
-        } catch (PDOException $e) {
-            error_log($e->getMessage());
-            $validator->addError('general', 'Terjadi kesalahan sistem');
-        }
+    // Rate Limiting Check
+    $rateLimiter = new RateLimiter();
+    $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    
+    $rateCheck = $rateLimiter->check($ipAddress, 'login', 5, 15);
+    
+    if (!$rateCheck['allowed']) {
+        // User is BLOCKED
+        $alertJS .= "notify.error('" . addslashes($rateCheck['message']) . "', 5000);";
     } else {
-        foreach (['email','password'] as $field)
-            if ($validator->getError($field))
-                $alertJS .= "notify.warning('".addslashes($validator->getError($field))."', 2500);";
+        // Rate limit OK - Proceed with login
+        $validator->required('email', 'Email');
+        $validator->required('password', 'Password');
+        $validator->email('email', 'Email');
+        
+        if ($validator->passes()) {
+            try {
+                $db = Database::getInstance()->getConnection();
+                
+                $stmt = $db->prepare("SELECT * FROM users WHERE email = ? AND is_active = 1 AND deleted_at IS NULL LIMIT 1");
+                $stmt->execute([$email]);
+                $user = $stmt->fetch();
+                
+                if (!$user) {
+                    // User not found - Record attempt
+                    $rateLimiter->record($ipAddress, 'login', 15);
+                    $rateCheckAfter = $rateLimiter->check($ipAddress, 'login', 5, 15);
+                    
+                    $errorMsg = 'Email tidak ditemukan atau akun belum aktif.';
+                    if ($rateCheckAfter['message']) {
+                        $errorMsg .= ' ' . $rateCheckAfter['message'];
+                    }
+                    
+                    $validator->addError('general', $errorMsg);
+                    
+                } elseif (password_verify($password, $user['password'])) {
+                    // Login SUCCESS
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['user_name'] = $user['name'];
+                    $_SESSION['user_email'] = $user['email'];
+                    $_SESSION['user_role'] = $user['role'];
+                    $_SESSION['user_photo'] = $user['photo'];
+
+                    $stmt = $db->prepare("UPDATE users SET last_login_at = NOW() WHERE id = ?");
+                    $stmt->execute([$user['id']]);
+
+                    logActivity('LOGIN', 'User login ke sistem', 'users', $user['id']);
+                    
+                    if ($remember) {
+                        setcookie('remember_email', $email, time() + (86400 * 30), "/");
+                        setcookie('remember_password', $password, time() + (86400 * 30), "/");
+                    } else {
+                        setcookie('remember_email', '', time() - 3600, "/");
+                        setcookie('remember_password', '', time() - 3600, "/");
+                    }
+
+                    $alertJS .= "notify.success('Selamat datang, " . addslashes($user['name']) . "!');";
+                    $alertJS .= "setTimeout(() => { window.location.href = '" . ADMIN_URL . "'; }, 1500);";
+                    
+                } else {
+                    // Password WRONG - Record attempt
+                    $rateLimiter->record($ipAddress, 'login', 15);
+                    $rateCheckAfter = $rateLimiter->check($ipAddress, 'login', 5, 15);
+                    
+                    $errorMsg = 'Email atau password salah.';
+                    if ($rateCheckAfter['message']) {
+                        $errorMsg .= ' ' . $rateCheckAfter['message'];
+                    }
+                    
+                    $validator->addError('general', $errorMsg);
+                }
+            } catch (PDOException $e) {
+                error_log($e->getMessage());
+                $validator->addError('general', 'Terjadi kesalahan sistem');
+            }
+        } else {
+            // Validation failed
+            foreach (['email','password'] as $field) {
+                if ($validator->getError($field)) {
+                    $alertJS .= "notify.warning('".addslashes($validator->getError($field))."', 2500);";
+                }
+            }
+        }
     }
+    
+    // Display general error if exists
     if ($validator && $validator->getError('general')) {
         $alertJS .= "notify.error('".addslashes($validator->getError('general'))."', 4000);";
     }
@@ -152,7 +176,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/compiled/css/app-dark.css" />
     <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/compiled/css/auth.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
-
     <link rel="stylesheet" href="<?= ADMIN_URL ?>assets/css/<?= $notificationCssFile ?>?v=<?= time() ?>" />
 </head>
 <body>
@@ -244,7 +267,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script src="<?= ADMIN_URL ?>assets/static/js/components/dark.js"></script>
-    
     <script src="<?= ADMIN_URL ?>assets/js/<?= $notificationJsFile ?>?v=<?= time() ?>"></script>
     
     <?php if (!empty($alertJS)): ?>

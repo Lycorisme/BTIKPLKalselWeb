@@ -7,6 +7,8 @@
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config.php';
+// Tambahkan RateLimiter (path menyesuaikan karena file ini di dalam /api/)
+require_once __DIR__ . '/../../core/RateLimiter.php';
 
 // Only accept POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -14,6 +16,23 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Method not allowed']);
     exit;
 }
+
+// ===== RATE LIMITING - START =====
+$rateLimiter = new RateLimiter();
+$ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+
+// Check rate limit: max 5 submissions per 30 minutes
+$rateCheck = $rateLimiter->check($ipAddress, 'contact', 5, 30);
+
+if (!$rateCheck['allowed']) {
+    http_response_code(429);
+    echo json_encode([
+        'success' => false,
+        'message' => $rateCheck['message']
+    ]);
+    exit;
+}
+// ===== RATE LIMITING - END =====
 
 // Get POST data
 $name = trim($_POST['name'] ?? '');
@@ -43,6 +62,9 @@ if (empty($message) || strlen($message) < 10) {
 
 // Return validation errors
 if (!empty($errors)) {
+    // Record failed validation attempt
+    $rateLimiter->record($ipAddress, 'contact', 30);
+
     http_response_code(400);
     echo json_encode([
         'success' => false,
@@ -59,28 +81,9 @@ $subject = htmlspecialchars($subject, ENT_QUOTES, 'UTF-8');
 $message = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
 
 // Get user info
-$ip_address = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
 $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
 try {
-    // Rate limiting: Check if user submitted recently (within 2 minutes)
-    $stmt = $db->prepare("
-        SELECT COUNT(*) as count 
-        FROM contact_messages 
-        WHERE ip_address = ? AND created_at > DATE_SUB(NOW(), INTERVAL 2 MINUTE)
-    ");
-    $stmt->execute([$ip_address]);
-    $recent_count = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
-    
-    if ($recent_count > 0) {
-        http_response_code(429);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Mohon tunggu 2 menit sebelum mengirim pesan lagi'
-        ]);
-        exit;
-    }
-    
     // Insert contact message
     $stmt = $db->prepare("
         INSERT INTO contact_messages 
@@ -94,13 +97,16 @@ try {
         $phone,
         $subject,
         $message,
-        $ip_address,
+        $ipAddress,
         $user_agent
     ]);
     
     // Get inserted ID
     $message_id = $db->lastInsertId();
     
+    // Record successful submission
+    $rateLimiter->record($ipAddress, 'contact', 30);
+
     // Success response
     echo json_encode([
         'success' => true,
@@ -110,6 +116,10 @@ try {
     
 } catch (PDOException $e) {
     error_log('Contact API Error: ' . $e->getMessage());
+    
+    // Record failed attempt (System Error)
+    $rateLimiter->record($ipAddress, 'contact', 30);
+
     http_response_code(500);
     echo json_encode([
         'success' => false,

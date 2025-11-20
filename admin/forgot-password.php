@@ -5,6 +5,8 @@ require_once '../config/config.php';
 require_once '../core/Database.php';
 require_once '../core/Helper.php';
 require_once '../core/Validator.php';
+// Tambahkan RateLimiter
+require_once '../core/RateLimiter.php';
 
 $siteName     = getSetting('site_name', 'BTIKP Kalimantan Selatan');
 $siteLogo     = getSetting('site_logo');
@@ -18,14 +20,11 @@ $bgColor      = getSetting('login_background_color', '#667eea');
 $bgOverlayText = trim(getSetting('login_background_overlay_text', ''));
 
 // ==================================================================
-// == [PERUBAHAN DIMULAI DI SINI] ==
-// Logika untuk memuat file Notifikasi/Alert dinamis
+// == Logika untuk memuat file Notifikasi/Alert dinamis
 // ==================================================================
 
-// 1. Dapatkan tema yang sedang aktif dari database
 $currentTheme = getSetting('notification_alert_theme', 'alecto-final-blow');
 
-// 2. Tentukan nama file CSS dan JS berdasarkan tema yang aktif
 switch ($currentTheme) {
     case 'an-eye-for-an-eye':
         $notificationCssFile = 'notifications_an_eye_for_an_eye.css';
@@ -45,13 +44,10 @@ switch ($currentTheme) {
         break;
     case 'alecto-final-blow':
     default:
-        $notificationCssFile = 'notifications.css'; // File default (Alecto)
-        $notificationJsFile = 'notifications.js';  // File default (Alecto)
+        $notificationCssFile = 'notifications.css';
+        $notificationJsFile = 'notifications.js';
         break;
 }
-// ==================================================================
-// == [PERUBAHAN SELESAI] ==
-// ==================================================================
 
 $validator = null;
 $alertJS = "";
@@ -59,51 +55,74 @@ $alertJS = "";
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = clean($_POST['email'] ?? '');
 
-    $validator = new Validator($_POST);
-    $validator->required('email', 'Email');
-    $validator->email('email', 'Email');
+    // ===== RATE LIMITING - START =====
+    $rateLimiter = new RateLimiter();
+    $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 
-    if ($validator->passes()) {
-        try {
-            $db = Database::getInstance()->getConnection();
+    // Check rate limit: max 3 attempts per 60 minutes
+    // Gunakan EMAIL sebagai identifier jika ada, jika tidak gunakan IP
+    $identifier = !empty($email) ? $email : $ipAddress;
+    $rateCheck = $rateLimiter->check($identifier, 'password_reset', 3, 60);
 
-            // Cek user berdasarkan email
-            $stmt = $db->prepare("SELECT id, name FROM users WHERE email = ? AND deleted_at IS NULL AND is_active = 1 LIMIT 1");
-            $stmt->execute([$email]);
-            $user = $stmt->fetch();
-
-            if ($user) {
-                // Generate token reset (36 char random)
-                $token = bin2hex(random_bytes(18));
-
-                // Insert token ke tabel password_resets, hapus token lama jika ada
-                $del = $db->prepare("DELETE FROM password_resets WHERE email = ?");
-                $del->execute([$email]);
-
-                $stmt = $db->prepare("INSERT INTO password_resets (email, token, created_at) VALUES (?, ?, NOW())");
-                $stmt->execute([$email, $token]);
-
-                // Kirim email reset (gunakan function helper Anda, email template dsb)
-                // sendPasswordResetEmail($email, $token); // Pastikan fungsi ini ada di helper Anda
-
-                // Notifikasi sukses
-                $alertJS .= "notify.success('Email reset password telah dikirim. Periksa inbox Anda.', 5000);";
-                $alertJS .= "notify.alert({ type: 'info', title: 'Permintaan Reset Terkirim', message: 'Silakan cek email Anda untuk instruksi reset password.', confirmText: 'Tutup' });";
-
-            } else {
-                $alertJS .= "notify.error('Email tidak ditemukan atau akun belum aktif.');";
-            }
-        } catch (PDOException $e) {
-            error_log($e->getMessage());
-            $alertJS .= "notify.error('Terjadi kesalahan sistem.');";
-        }
+    if (!$rateCheck['allowed']) {
+        // User is blocked
+        $alertJS .= "notify.error('" . addslashes($rateCheck['message']) . "', 5000);";
     } else {
-        // Invalid form input show warnings
-        if ($validator->getError('email'))
-            $alertJS .= "notify.warning('".addslashes($validator->getError('email'))."');";
-        if ($validator->getError('general'))
-            $alertJS .= "notify.error('".addslashes($validator->getError('general'))."');";
-    }
+        // Rate limit OK, proceed with validation
+        
+        $validator = new Validator($_POST);
+        $validator->required('email', 'Email');
+        $validator->email('email', 'Email');
+
+        if ($validator->passes()) {
+            try {
+                $db = Database::getInstance()->getConnection();
+
+                // Cek user berdasarkan email
+                $stmt = $db->prepare("SELECT id, name FROM users WHERE email = ? AND deleted_at IS NULL AND is_active = 1 LIMIT 1");
+                $stmt->execute([$email]);
+                $user = $stmt->fetch();
+
+                if ($user) {
+                    // Generate token reset (36 char random)
+                    $token = bin2hex(random_bytes(18));
+
+                    // Insert token ke tabel password_resets, hapus token lama jika ada
+                    $del = $db->prepare("DELETE FROM password_resets WHERE email = ?");
+                    $del->execute([$email]);
+
+                    $stmt = $db->prepare("INSERT INTO password_resets (email, token, created_at) VALUES (?, ?, NOW())");
+                    $stmt->execute([$email, $token]);
+
+                    // Kirim email reset (gunakan function helper Anda, email template dsb)
+                    // sendPasswordResetEmail($email, $token); 
+
+                    // Notifikasi sukses
+                    $alertJS .= "notify.success('Email reset password telah dikirim. Periksa inbox Anda.', 5000);";
+                    $alertJS .= "notify.alert({ type: 'info', title: 'Permintaan Reset Terkirim', message: 'Silakan cek email Anda untuk instruksi reset password.', confirmText: 'Tutup' });";
+
+                } else {
+                    // User not found - Record failed attempt
+                    $rateLimiter->record($identifier, 'password_reset', 60);
+                    
+                    $alertJS .= "notify.error('Email tidak ditemukan atau akun belum aktif.');";
+                }
+            } catch (PDOException $e) {
+                error_log($e->getMessage());
+                // Record failed attempt
+                $rateLimiter->record($identifier, 'password_reset', 60);
+                $alertJS .= "notify.error('Terjadi kesalahan sistem.');";
+            }
+        } else {
+            // Invalid form input
+            $rateLimiter->record($identifier, 'password_reset', 60);
+
+            if ($validator->getError('email'))
+                $alertJS .= "notify.warning('".addslashes($validator->getError('email'))."');";
+            if ($validator->getError('general'))
+                $alertJS .= "notify.error('".addslashes($validator->getError('general'))."');";
+        }
+    } // End rate limiting check
 }
 ?>
 <!DOCTYPE html>

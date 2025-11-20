@@ -5,6 +5,8 @@ require_once '../config/config.php';
 require_once '../core/Database.php';
 require_once '../core/Helper.php';
 require_once '../core/Validator.php';
+// Tambahkan RateLimiter
+require_once '../core/RateLimiter.php';
 
 if (isLoggedIn()) {
     redirect(ADMIN_URL);
@@ -22,14 +24,11 @@ $bgColor      = getSetting('login_background_color', '#667eea');
 $bgOverlayText = trim(getSetting('login_background_overlay_text', ''));
 
 // ==================================================================
-// == [PERUBAHAN DIMULAI DI SINI] ==
-// Logika untuk memuat file Notifikasi/Alert dinamis
+// == Logika untuk memuat file Notifikasi/Alert dinamis
 // ==================================================================
 
-// 1. Dapatkan tema yang sedang aktif dari database
 $currentTheme = getSetting('notification_alert_theme', 'alecto-final-blow');
 
-// 2. Tentukan nama file CSS dan JS berdasarkan tema yang aktif
 switch ($currentTheme) {
     case 'an-eye-for-an-eye':
         $notificationCssFile = 'notifications_an_eye_for_an_eye.css';
@@ -49,13 +48,10 @@ switch ($currentTheme) {
         break;
     case 'alecto-final-blow':
     default:
-        $notificationCssFile = 'notifications.css'; // File default (Alecto)
-        $notificationJsFile = 'notifications.js';  // File default (Alecto)
+        $notificationCssFile = 'notifications.css';
+        $notificationJsFile = 'notifications.js'; 
         break;
 }
-// ==================================================================
-// == [PERUBAHAN SELESAI] ==
-// ==================================================================
 
 $validator   = null;
 $alertJS     = "";
@@ -66,48 +62,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password         = $_POST['password'] ?? '';
     $password_confirm = $_POST['password_confirm'] ?? '';
 
-    $validator = new Validator($_POST);
-    $validator->required('name', 'Nama');
-    $validator->required('email', 'Email');
-    $validator->email('email', 'Email');
-    $validator->required('password', 'Password');
-    $validator->required('password_confirm', 'Konfirmasi Password');
-    $validator->match('password_confirm', 'password', 'Konfirmasi Password tidak cocok dengan Password');
+    // ===== RATE LIMITING - START =====
+    $rateLimiter = new RateLimiter();
+    $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 
-    if ($validator->passes()) {
-        try {
-            $db = Database::getInstance()->getConnection();
-            $stmt = $db->prepare("SELECT id FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1");
-            $stmt->execute([$email]);
-            if ($stmt->fetch()) {
-                $alertJS .= "notify.error('Email sudah terdaftar.');";
-            } else {
-                $password_hash = password_hash($password, PASSWORD_DEFAULT);
-                // is_active=3 = akun baru menunggu approval
-                $stmt = $db->prepare("INSERT INTO users (name, email, password, role, is_active, created_at) VALUES (?, ?, ?, 'editor', 3, NOW())");
-                $stmt->execute([$name, $email, $password_hash]);
-                $alertJS .= "
-                notify.success('Pendaftaran berhasil! Tunggu persetujuan admin.', 5000);
-                setTimeout(function() {
-                    notify.alert({
-                        type: 'info',
-                        title: 'Registrasi Berhasil',
-                        message: 'Akun Anda telah didaftarkan dengan status <b>menunggu persetujuan admin</b>.<br>Silakan login jika sudah di-ACC.',
-                        confirmText: 'Ke Login',
-                        onConfirm: function() { window.location.href = '".ADMIN_URL."login.php'; }
-                    });
-                }, 600);
-                ";
-            }
-        } catch (PDOException $e) {
-            error_log($e->getMessage());
-            $alertJS .= "notify.error('Terjadi kesalahan sistem.');";
-        }
+    // Check rate limit: max 3 attempts per 60 minutes (Strict for register)
+    $rateCheck = $rateLimiter->check($ipAddress, 'register', 3, 60);
+
+    if (!$rateCheck['allowed']) {
+        // User is blocked
+        $alertJS .= "notify.error('" . addslashes($rateCheck['message']) . "', 5000);";
     } else {
-        foreach (['name', 'email', 'password', 'password_confirm'] as $field)
-            if ($validator->getError($field)) $alertJS .= "notify.warning('".addslashes($validator->getError($field))."', 2500);";
-        if ($validator->getError('general')) $alertJS .= "notify.error('".addslashes($validator->getError('general'))."', 4000);";
-    }
+        // Rate limit OK, proceed with validation
+        
+        $validator = new Validator($_POST);
+        $validator->required('name', 'Nama');
+        $validator->required('email', 'Email');
+        $validator->email('email', 'Email');
+        $validator->required('password', 'Password');
+        $validator->required('password_confirm', 'Konfirmasi Password');
+        $validator->match('password_confirm', 'password', 'Konfirmasi Password tidak cocok dengan Password');
+
+        if ($validator->passes()) {
+            try {
+                $db = Database::getInstance()->getConnection();
+                $stmt = $db->prepare("SELECT id FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1");
+                $stmt->execute([$email]);
+                
+                if ($stmt->fetch()) {
+                    // Email already exists - Record failed attempt
+                    $rateLimiter->record($ipAddress, 'register', 60);
+                    $alertJS .= "notify.error('Email sudah terdaftar.');";
+                } else {
+                    $password_hash = password_hash($password, PASSWORD_DEFAULT);
+                    // is_active=3 = akun baru menunggu approval
+                    $stmt = $db->prepare("INSERT INTO users (name, email, password, role, is_active, created_at) VALUES (?, ?, ?, 'editor', 3, NOW())");
+                    $stmt->execute([$name, $email, $password_hash]);
+                    
+                    // Successful registration doesn't necessarily need to be recorded as a "failure" count, 
+                    // unless you want to limit successful registrations too.
+                    
+                    $alertJS .= "
+                    notify.success('Pendaftaran berhasil! Tunggu persetujuan admin.', 5000);
+                    setTimeout(function() {
+                        notify.alert({
+                            type: 'info',
+                            title: 'Registrasi Berhasil',
+                            message: 'Akun Anda telah didaftarkan dengan status <b>menunggu persetujuan admin</b>.<br>Silakan login jika sudah di-ACC.',
+                            confirmText: 'Ke Login',
+                            onConfirm: function() { window.location.href = '".ADMIN_URL."login.php'; }
+                        });
+                    }, 600);
+                    ";
+                }
+            } catch (PDOException $e) {
+                error_log($e->getMessage());
+                // Record failed attempt on system error
+                $rateLimiter->record($ipAddress, 'register', 60);
+                $alertJS .= "notify.error('Terjadi kesalahan sistem.');";
+            }
+        } else {
+            // Validation failed - Record failed attempt
+            $rateLimiter->record($ipAddress, 'register', 60);
+
+            foreach (['name', 'email', 'password', 'password_confirm'] as $field)
+                if ($validator->getError($field)) $alertJS .= "notify.warning('".addslashes($validator->getError($field))."', 2500);";
+            if ($validator->getError('general')) $alertJS .= "notify.error('".addslashes($validator->getError('general'))."', 4000);";
+        }
+    } // End rate limiting check
 }
 ?>
 

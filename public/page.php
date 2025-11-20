@@ -9,6 +9,8 @@
  */
 
 require_once 'config.php';
+// [TRACKING] Load Tracker Class
+require_once '../core/PageViewTracker.php';
 
 // Get slug from URL
 $slug = $_GET['slug'] ?? '';
@@ -49,7 +51,14 @@ if (!$page || $page['status'] !== 'published') {
     exit;
 }
 
+// [TRACKING] Implement Page View Tracker
+if ($page) {
+    $tracker = new PageViewTracker();
+    $tracker->track('page', $page['id']);
+}
+
 // Increment view count (only if column exists)
+// Note: Tetap dijalankan karena trigger SQL saat ini hanya menangani 'post' dan 'service', belum 'page'
 try {
     $pageModel->incrementViewCount($page['id']);
 } catch (Exception $e) {
